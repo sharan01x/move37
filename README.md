@@ -139,5 +139,3 @@ More detailed documentation is coming soon.
 - **Offline resilience**: Reconnection handling with exponential backoff
 - **File attachments**: Support for sending files through the chat interface
 - **User identity management**: Persistent user ID stored in localStorage
-- **Dark mode**: Toggleable theme support
-- **Responsive design**: Mobile-friendly with special handling for iOS devices
