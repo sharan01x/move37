@@ -1,0 +1,155 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import { 
+    addUserMessage, 
+    addSystemMessage,
+    messageInput,
+    isLoading
+  } from '$lib/stores/chatStore';
+  import { 
+    activeAgent, 
+    currentAgent, 
+    setActiveAgent,
+    addMessageToConversation,
+    conversationHistory
+  } from '$lib/stores/agentsStore';
+  import { sendChatMessage } from '$lib/stores/websocketStore';
+  import { get } from 'svelte/store';
+  import { v4 as uuidv4 } from 'uuid';
+  
+  // Check if this is the active agent
+  $: isActive = $activeAgent === 'files';
+  
+  // Helper function to activate this agent
+  function activateFiles() {
+    setActiveAgent('files');
+  }
+  
+  // Send a message specifically to Files
+  async function sendToFiles(text: string) {
+    // Store the current agent
+    const previousAgent = $activeAgent;
+    
+    // Switch to Files temporarily
+    setActiveAgent('files');
+    
+    // Generate a query ID for this message
+    const queryId = uuidv4();
+    
+    // Create a user message directly with the same structure as in ChatInterface
+    const userMessage = {
+      id: uuidv4(),
+      type: 'user',
+      content: text,
+      sender: 'User',
+      agentId: 'files',
+      timestamp: new Date(),
+      attachments: [],
+      queryId
+    };
+    
+    // Add message directly to the conversation history
+    addMessageToConversation('files', userMessage);
+    
+    // Set loading state
+    $isLoading = true;
+    
+    // Use the updated sendChatMessage that now uses the proper message format
+    const success = sendChatMessage(text, queryId);
+    
+    if (!success) {
+      addSystemMessage('Failed to send message to Files. Please check your connection.');
+      $isLoading = false;
+    }
+    
+    // Return to previous agent if needed
+    if (previousAgent !== 'files') {
+      // Wait a bit to ensure the message is processed
+      setTimeout(() => setActiveAgent(previousAgent), 100);
+    }
+  }
+  
+  // Files specific prompt templates
+  const promptTemplates = [
+    "Upload a new document",
+    "Show my recently uploaded files",
+    "Search for PDF files",
+    "Help me organize my files"
+  ];
+  
+  function addWelcomeMessage() {
+    // Check if we should add the welcome message
+    // Only add if: there are no messages in the files conversation
+    const convHistory = get(conversationHistory);
+    const filesConversation = convHistory['files'] || [];
+    const currentAgentId = get(activeAgent);
+    
+    // Only add welcome message to files conversation if it's empty
+    if (filesConversation.length === 0 && currentAgentId === 'files') {
+      // Create template buttons HTML
+      const templateButtonsHtml = promptTemplates
+        .map(template => `<button class="template-button" data-prompt="${template}">${template}</button>`)
+        .join('');
+      
+      // Create welcome message
+      const welcomeMessage = {
+        id: `files_welcome_${Date.now()}`,
+        type: 'agent',
+        content: `<div class="welcome-message">
+          <p>This is the Files section. Here you can manage your uploaded documents:</p>
+          <div class="template-buttons">
+            ${templateButtonsHtml}
+          </div>
+        </div>`,
+        sender: 'Files',
+        agentId: 'files',
+        timestamp: new Date(),
+        isHtml: true
+      };
+      
+      // Add to files conversation only
+      addMessageToConversation('files', welcomeMessage);
+      
+      // Only add DOM event listeners if in browser environment
+      if (browser) {
+        // Add message event listeners after a brief delay to ensure DOM is updated
+        setTimeout(() => {
+          document.querySelectorAll('.template-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              // Get the prompt from the data attribute
+              const prompt = (e.currentTarget as HTMLElement).dataset.prompt;
+              if (prompt) {
+                sendToFiles(prompt);
+              }
+            });
+          });
+        }, 100);
+      }
+    }
+  }
+  
+  onMount(() => {
+    // Initialize any Files specific functionality
+    console.log('Files agent component mounted');
+    
+    // Only run welcome message in browser environment
+    if (browser) {
+      addWelcomeMessage();
+      
+      // Add event listener for agent changes
+      const unsubscribe = activeAgent.subscribe(agentId => {
+        if (agentId === 'files') {
+          // Check if we need to add welcome message when switching to Files
+          addWelcomeMessage();
+        }
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }
+  });
+</script>
+
+<!-- No visible UI elements - only logic for adding welcome message --> 

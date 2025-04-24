@@ -1,0 +1,11 @@
+@use 'smui-theme';
+
+// Import all the styles for the classes.
+@use '@material/typography/mdc-typography';
+@use '@material/elevation/mdc-elevation';
+
+// Import the mixins with unique namespaces
+@use '@smui/button/style' as button;
+@use '@smui/card/style' as card;
+@use '@smui/data-table/style' as data-table;
+@use '@smui/textfield/style' as textfield; 
