@@ -45,17 +45,15 @@ pip install -r requirements.txt
 
 3. Run the application:
 ```bash
-python main.py
+python main.py --host 0.0.0.0
 ```
 
 4. Access the frontend:
 ```bash
 cd frontend
-python -m http.server 8080
+python -m http.server 3000
 ```
 
-<<<<<<< Updated upstream
-=======
 5. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
 
 a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/move37/uielements
@@ -149,7 +147,6 @@ b. A file with the data/social_media/accounts.json file built with the following
 
 
 
->>>>>>> Stashed changes
 Then open your browser to http://localhost:3000
 
 ## Features
