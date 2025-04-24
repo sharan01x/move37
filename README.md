@@ -4,35 +4,8 @@ Move 37 is an AI assistant that helps you record, organize, and recall informati
 
 This project is covered by a license. Please review the license file (license.md) for further details.
 
-## Directory Structure
-
-```
-root/
-├── app/                  # Main application code
-│   ├── api/              # API endpoints
-│   ├── agents/           # Agent implementations
-│   ├── core/             # Core functionality and config
-│   ├── database/         # Database interfaces
-│   ├── models/           # Data models
-│   ├── tools/            # Tools used by agents
-│   └── utils/            # Utility functions
-├── data/                 # All data storage
-│   ├── vector_db/        # Vector database storage
-│   │   ├── conversations/# Conversation vectors
-│   │   ├── entities/     # Named entity vectors
-│   │   └── metadata/     # Vector metadata
-│   ├── user_context_db/  # User context database
-│   └── user_data/        # User-specific data
-├── tests/                # All test files
-│   ├── unit/             # Unit tests
-│   └── integration/      # Integration tests
-├── frontend/             # Frontend code
-└── docs/                 # Documentation
-```
 
 ## Installation
-
-
 
 1. Clone the repository:
 ```bash
