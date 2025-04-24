@@ -16,7 +16,7 @@
 
 <div class="sidebar">
   <div class="sidebar-header">
-    <h1>LifeScribe</h1>
+    <h1>Move 37</h1>
   </div>
   
   <div class="conversation-list">

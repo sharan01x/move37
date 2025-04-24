@@ -69,7 +69,7 @@
       <button class="menu-button" on:click={toggleSidebar} aria-label="Toggle menu">
         <i class="fas fa-bars"></i>
       </button>
-      <h1>LifeScribe</h1>
+      <h1>Move 37</h1>
       <button class="user-button" on:click={toggleUserPanel} aria-label="Toggle user panel">
         <i class="fas fa-user"></i>
       </button>

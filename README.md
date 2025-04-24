@@ -1,6 +1,8 @@
 # Move 37
 
-Move 37 is an AI memory assistant that helps you record, organize, and recall information and perform actions you want using your computer. This project is covered by a license. Please review the license file (license.md) for further details.
+Move 37 is an AI assistant that helps you record, organize, and recall information and perform actions you want using your own computer. 
+
+This project is covered by a license. Please review the license file (license.md) for further details.
 
 ## Directory Structure
 
@@ -30,34 +32,39 @@ root/
 
 ## Installation
 
+
+
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/lifescribe.git
-cd lifescribe
+git clone https://github.com/sharan01x/move37.git
+cd move37
 ```
 
-2. Create a virtual environment and install dependencies:
+2. Check configuration file for the right paths or to change the AI models that you prefer to use. Leave this as is if you want to use the default settings, in which case, ,make sure you already have Ollama installed and running Qwen2.5, mxbai-embed-large and phi4-mini. 
+
+3. Create a virtual environment and install dependencies:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
+You will need to install some depencies manually, and they are detailed in the requirements.txt file.
 
-3. Run the application:
+
+4. Run the application:
 ```bash
 python main.py --host 0.0.0.0
 ```
 
-4. Access the frontend:
+5. Access the frontend:
 ```bash
 cd frontend
 python -m http.server 3000
 ```
 
-5. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
-
+6. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
 a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/move37/uielements
-b. A file with the data/social_media/accounts.json file built with the following structure until a utility to manage this has been  built:
+b. A file with the social media account details at data/social_media/accounts.json. You can have one or more accounts use the following structure for the various supported platforms:
 
 ```
 [
@@ -145,97 +152,12 @@ b. A file with the data/social_media/accounts.json file built with the following
 ]
 ```
 
-
-
 Then open your browser to http://localhost:3000
-
-## Features
-
-- Record and transcribe voice notes
-- Extract named entities from text
-- Search and recall information using natural language
-- Specialized agents for different types of queries
-- Web-based user interface
 
 ## Documentation
 
 More detailed documentation is coming soon.
 
-
-<<<<<<< Updated upstream
-This project is licensed by Sharan Grandige (sharan@redd.in). Please review the license file for further details.
-
-=======
->>>>>>> Stashed changes
-
-
-
-
-
-
-
-# LifeScribe Application Architecture
-
-## Core Components
-
-### App.svelte
-The main component that manages the application modes ('recall' or 'record') and renders the sidebar, chat interface, and user profile panel.
-
-### UserProfile.svelte
-Handles user ID management, storing it in localStorage, and manages user facts.
-
-### ChatInterface.svelte
-The primary chat UI that displays conversations and handles message sending. It includes:
-- Message display with proper styling for different message types (user, agent, system)
-- Input area with file attachment support
-- Connection status indication
-- Dark mode toggle
-
-## WebSocket Implementation
-
-The application uses two separate WebSocket connections:
-- **Recall WebSocket** (recallWsService): For retrieving information and chat interactions
-- **Record WebSocket** (recordWsService): For recording/storing information
-
-The WebSocket implementation uses:
-- **WebSocketService class**: A robust implementation handling:
-  - Connections and reconnections with exponential backoff
-  - Message sending/receiving
-  - Error handling
-- **Connection status management**: Tracks and displays the connection state to users
-- **Message handlers**: Registers event handlers for different message types
-
-## State Management (Svelte Stores)
-
-### chatStore.ts
-Manages:
-- Message input and loading states
-- Message creation and storage
-- File attachments
-- User ID
-
-### agentsStore.ts
-Handles:
-- Multiple agent definitions (First Responder, Number Ninja, Persephone, etc.)
-- Active agent selection
-- Conversation history for each agent
-- Message operations (add, clear)
-
-### websocketStore.ts
-Provides:
-- WebSocket connection status
-- Automatic reconnection logic
-- Notification handling
-- Message sending functions
-
-## Communication Flow
-
-1. User types a message in ChatInterface
-2. Message is processed through `sendMessage()` function
-3. Message is sent via WebSocket using `sendChatMessage()`
-4. The appropriate WebSocket service handles the delivery
-5. Response messages from the server are processed by registered handlers
-6. Messages are displayed in the chat interface
 
 ## Features
 

@@ -1,6 +1,11 @@
 # Dependencies confirmed working with Python 3.11 - March 2025
+# Install with: pip install -r requirements.txt
+# After installation, run: python -m spacy download en_core_web_sm
 
+# Core Agent Dependencies
 crewai==0.102.0
+
+# LangChain Ecosystem
 langchain>=0.0.310
 langchain-community>=0.0.27
 langchain-openai>=0.0.2
@@ -8,26 +13,36 @@ langchain-huggingface>=0.0.3
 langchain-ollama>=0.0.1
 sentence-transformers>=2.6.0
 ollama==0.4.7
+
+# API and Web Server
 fastapi==0.109.2
 uvicorn==0.27.1
 pydantic>=2.7.4,<3.0.0
 python-multipart==0.0.9
+websockets==12.0
+
+# Data Science and ML
 numpy>=1.26.0
 torch>=2.2.0
 transformers>=4.37.2
+# If faiss-cpu fails to build, try: pip install faiss-cpu --no-build-isolation
+# Or install SWIG first: brew install swig (on macOS)
 faiss-cpu==1.7.4
 spacy==3.7.2
+scipy>=1.11.0
+sympy>=1.12.0
+
+# Media Processing
 SpeechRecognition==3.10.0
 pydub==0.25.1
 pymilvus==2.3.4
-sympy>=1.12.0
+
+# Document Processing
 PyPDF2==3.0.1
 pdfminer.six==20231228
 pdfplumber==0.11.5
 python-docx==1.1.0
 Markdown==3.5.2
-websockets==12.0
-scipy>=1.11.0
 
 # Test dependencies
 pytest==8.0.0
