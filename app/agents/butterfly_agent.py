@@ -215,7 +215,7 @@ class ButterflyAgent(BaseAgent):
         """
         try:
             self.set_message_callback(message_callback)
-            await self.send_message("Butterfly is analyzing your social media post request...")
+            await self.send_message("Butterfly is analyzing your request...")
 
             # Use LLM to extract key information from the request
             user_prompt = f"""
@@ -336,9 +336,9 @@ class ButterflyAgent(BaseAgent):
                         
                         # Notify the user about the posting operation
                         if attachment_file_path:
-                            await self.send_message(f"[Butterfly Agent] Butterfly will post to {len(targets)} account(s) with attachment")
+                            await self.send_message(f"Butterfly will post to {len(targets)} account(s) with attachment")
                         else:
-                            await self.send_message(f"[Butterfly Agent] Butterfly will post to {len(targets)} account(s)")
+                            await self.send_message(f"Butterfly will post to {len(targets)} account(s)")
                         
                         # Post the content to the targeted accounts
                         result = await self._post_to_accounts(content, targets, user_id, attachment_file_path)

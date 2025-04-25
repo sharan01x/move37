@@ -188,7 +188,7 @@ class ConductorAgent(BaseAgent):
                 await message_callback({
                     "type": "status_update",
                     "data": {
-                        "message": f"Processing query with {', '.join(agents_to_use.keys())} agent(s)...",
+                        "message": f"Processing query...",
                         "operation_id": str(uuid.uuid4())
                     }
                 })

@@ -70,6 +70,20 @@
     }
   }
   
+  // Fill the input box with template text
+  function fillInputWithTemplate(template: string) {
+    // Set the input value to the template text
+    messageInput.set(template);
+    
+    // Focus the input field (if available)
+    setTimeout(() => {
+      const inputElement = document.querySelector('textarea');
+      if (inputElement) {
+        inputElement.focus();
+      }
+    }, 100);
+  }
+  
   // Librarian specific prompt templates
   const promptTemplates = [
     "What documents have I uploaded recently?",
@@ -89,7 +103,11 @@
     if (librarianConversation.length === 0 && currentAgentId === 'librarian') {
       // Create template buttons HTML
       const templateButtonsHtml = promptTemplates
-        .map(template => `<button class="template-button" data-prompt="${template}">${template}</button>`)
+        .map(template => {
+          // Escape quotes for the data attribute
+          const escapedTemplate = template.replace(/"/g, '&quot;');
+          return `<button class="template-button" data-prompt="${escapedTemplate}">${template}</button>`;
+        })
         .join('');
       
       // Create welcome message
@@ -120,7 +138,8 @@
               // Get the prompt from the data attribute
               const prompt = (e.currentTarget as HTMLElement).dataset.prompt;
               if (prompt) {
-                sendToLibrarian(prompt);
+                // Instead of sending, fill the input box with the template
+                fillInputWithTemplate(prompt);
               }
             });
           });

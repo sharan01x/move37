@@ -5,10 +5,16 @@
   // Control the visibility
   let visible = false;
   let timeoutId: number | null = null;
+  let isFileUpload = false;
   
   // When the status message changes, show it
   $: if ($statusMessage) {
     showMessage();
+    // Check if this is a file upload message
+    isFileUpload = $statusMessage.includes('upload') || 
+                  $statusMessage.includes('file') || 
+                  $statusMessage.includes('image') || 
+                  $statusMessage.includes('video');
   }
   
   // Show the message for a few seconds
@@ -38,9 +44,9 @@
   });
 </script>
 
-<div class="status-message-container" class:visible={visible && $statusMessage}>
-  <div class="status-message">
-    <i class="fas fa-info-circle"></i>
+<div class="status-message-container" class:visible={visible && $statusMessage} class:file-upload={isFileUpload}>
+  <div class="status-message" class:file-upload={isFileUpload}>
+    <i class={isFileUpload ? "fas fa-file-upload" : "fas fa-info-circle"}></i>
     <span>{$statusMessage}</span>
   </div>
 </div>
@@ -78,6 +84,29 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  
+  /* Special styling for file upload messages */
+  .status-message.file-upload {
+    background-color: #f0f9ff;
+    color: #0284c7;
+    font-weight: 600;
+    padding: 0.85rem 1.2rem;
+    border-left: 3px solid #0284c7;
+    box-shadow: 0 -2px 10px rgba(2, 132, 199, 0.1);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 -2px 10px rgba(2, 132, 199, 0.1);
+    }
+    50% {
+      box-shadow: 0 -2px 15px rgba(2, 132, 199, 0.25);
+    }
+    100% {
+      box-shadow: 0 -2px 10px rgba(2, 132, 199, 0.1);
+    }
   }
   
   .status-message i {

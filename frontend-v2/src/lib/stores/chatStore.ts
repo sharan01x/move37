@@ -217,19 +217,23 @@ export function setActiveAgentId(id: string): void {
 
 // Handle file attachment
 export function setFileAttachment(file: File | FileAttachment | null): void {
+    console.log('setFileAttachment called with:', file ? `${file.name} (${file.type})` : 'null');
     if (file === null) {
         fileAttachment.set(null);
     } else if ('type' in file && 'name' in file && 'size' in file) {
         // If it's a File object from input
         if (file instanceof File) {
+            console.log('Setting file attachment from File object');
             fileAttachment.set({
                 id: uuidv4(),
                 name: file.name,
                 type: file.type,
-                size: file.size
+                size: file.size,
+                file: file
             });
         } else {
             // It's already a FileAttachment
+            console.log('Setting file attachment from FileAttachment object');
             fileAttachment.set(file);
         }
     }
@@ -237,6 +241,7 @@ export function setFileAttachment(file: File | FileAttachment | null): void {
 
 // Clear file attachment
 export function clearFileAttachment(): void {
+    console.log('Clearing file attachment');
     fileAttachment.set(null);
 }
 

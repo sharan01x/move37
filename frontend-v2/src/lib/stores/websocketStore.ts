@@ -117,9 +117,15 @@ export function disconnect(): void {
  * @param message The message text to send
  * @param queryId Optional query ID to identify this message
  * @param attachments Optional file attachments
+ * @param attachmentPath Optional file path for attachments already uploaded
  * @returns Boolean indicating if the message was successfully sent
  */
-export function sendChatMessage(message: string, queryId?: string, attachments: any[] = []): boolean {
+export function sendChatMessage(
+  message: string, 
+  queryId?: string, 
+  attachments: any[] = [],
+  attachmentPath?: string
+): boolean {
   if (!message.trim()) return false;
   
   // Get the current active agent
@@ -132,7 +138,7 @@ export function sendChatMessage(message: string, queryId?: string, attachments: 
   const messageQueryId = queryId || `q_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   
   // Use the format expected by the backend API
-  const payload = {
+  const payload: any = {
     type: "recall_query",
     data: {
       query: message,
@@ -141,6 +147,11 @@ export function sendChatMessage(message: string, queryId?: string, attachments: 
       query_id: messageQueryId
     }
   };
+  
+  // For butterfly agent with attachment, add the attachment file path
+  if (currentAgentId === 'butterfly' && attachmentPath) {
+    payload.data.attachment_file_path = attachmentPath;
+  }
   
   console.log("Sending recall query:", payload);
   
