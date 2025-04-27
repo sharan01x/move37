@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Librarian agent for the LifeScribe application.
+Librarian agent for the Move 37 application.
 Specializes in answering queries related to contents of files uploaded by the user.
 """
 

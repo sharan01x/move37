@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-File vectorization utilities for the LifeScribe application.
+File vectorization utilities for the Move 37 application.
 
 This module provides utilities for vectorizing file content for semantic search.
 """

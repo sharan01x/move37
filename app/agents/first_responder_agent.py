@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-First Responder agent for the LifeScribe application.
+First Responder agent for the Move 37 application.
 """
 
 from typing import Dict, Any, List, Optional, Callable

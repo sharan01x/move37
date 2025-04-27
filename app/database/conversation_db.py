@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Past Conversations database interface for the LifeScribe application.
+Past Conversations database interface for the Move 37 application.
 """
 
 import os

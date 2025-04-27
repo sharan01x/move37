@@ -1,10 +1,10 @@
-# LifeScribe Tools Module
+# Move 37 Tools Module
 
-This directory contains tools that enhance the capabilities of LifeScribe agents.
+This directory contains tools that enhance the capabilities of Move 37 agents.
 
 ## Math Tool
 
-The Math Tool (`math_tool.py`) provides mathematical calculation capabilities to the LifeScribe application. It is designed to be used with the FirstResponderAgent to handle mathematical queries directly, without needing to use the LLM.
+The Math Tool (`math_tool.py`) provides mathematical calculation capabilities to the Move 37 application. It is designed to be used with the FirstResponderAgent to handle mathematical queries directly, without needing to use the LLM.
 
 ### Features
 

@@ -308,6 +308,11 @@
   <SubmissionsAgent />
   <FilesAgent />
   
+  <!-- Theme toggle button at top-right -->
+  <button class="theme-toggle-button" on:click={toggleDarkMode}>
+    <i class="fas {$darkMode ? 'fa-sun' : 'fa-moon'}"></i>
+  </button>
+  
   <div class="header">
     <div class="connection-status-container">
       <ConnectionStatus />
@@ -396,11 +401,6 @@
         </button>
       </div>
     </div>
-    
-    <!-- Add theme toggle button fixed to the bottom of the screen -->
-    <button class="theme-toggle-button" on:click={toggleDarkMode}>
-      <i class="fas {$darkMode ? 'fa-sun' : 'fa-moon'}"></i>
-    </button>
     
     <!-- Hidden file input -->
     <input 
@@ -672,39 +672,6 @@
     color: var(--agent-system-color, #6b7280);
   }
 
-  /* Move theme toggle button to fixed position at bottom of screen */
-  .theme-toggle-button {
-    position: fixed;
-    bottom: 1rem;
-    left: 1rem;
-    background: none;
-    border: none;
-    color: var(--text-color, #555);
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s;
-    z-index: 10;
-    background-color: var(--background-color, white);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-  
-  .theme-toggle-button:hover {
-    background-color: var(--hover-color, #f0f0f0);
-  }
-  
-  .theme-toggle-button i {
-    font-size: 1.2rem;
-  }
-  
-  /* Remove theme button from chat input container */
-  .chat-input-container .theme-toggle-button {
-    display: none;
-  }
-  
   /* Standardize welcome message styling */
   :global(.welcome-message) {
     padding: 0.5rem;
@@ -745,5 +712,33 @@
   :global(.template-button:hover) {
     background-color: var(--hover-color, #f0f0f0);
     border-color: var(--agent-responder-color, #10b981);
+  }
+
+  /* Theme toggle button styles */
+  .theme-toggle-button {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: var(--text-color, #555);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+    z-index: 100;
+    background-color: var(--background-color, white);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .theme-toggle-button:hover {
+    background-color: var(--hover-color, #f0f0f0);
+  }
+  
+  .theme-toggle-button i {
+    font-size: 1.2rem;
   }
 </style> 

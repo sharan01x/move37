@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Vector database interface for the LifeScribe application.
+Vector database interface for the Move 37 application.
 This class provides a standardized interface for vector database operations
 across different components of the application.
 """

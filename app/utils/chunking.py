@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Text chunking utilities for the LifeScribe application.
+Text chunking utilities for the Move 37 application.
 """
 
 from typing import List, Dict, Any, Callable

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-WebSocket message handler implementation for the LifeScribe application.
+WebSocket message handler implementation for the Move 37 application.
 """
 
 from typing import Dict, Any, Optional, Callable

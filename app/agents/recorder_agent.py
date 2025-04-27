@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Recorder agent for the LifeScribe application.
+Recorder agent for the Move 37 application.
 """
 
 import os
@@ -30,7 +30,7 @@ class DateTimeEncoder(json.JSONEncoder):
 
 
 class RecorderAgent(BaseAgent):
-    """Recorder agent for the LifeScribe application."""
+    """Recorder agent for the Move 37 application."""
     
     def __init__(self):
         """Initialize the Recorder agent."""

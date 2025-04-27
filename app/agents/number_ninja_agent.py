@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Number Ninja agent for the LifeScribe application.
+Number Ninja agent for the Move 37 application.
 Specializes in answering mathematics-related questions.
 """
 

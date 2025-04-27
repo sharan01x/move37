@@ -1,3 +1,3 @@
 """
-Tools for the LifeScribe application.
+Tools for the Move 37 application.
 """

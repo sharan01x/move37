@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Base message handling interface for the LifeScribe application.
+Base message handling interface for the Move 37 application.
 """
 
 from abc import ABC, abstractmethod

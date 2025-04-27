@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Data models for the LifeScribe application.
+Data models for the Move 37 application.
 """
 
 from enum import Enum

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-API endpoints for the LifeScribe application.
+API endpoints for the Move 37 application.
 """
 
 import os
@@ -37,8 +37,8 @@ from app.utils.file_processor import FileProcessor
 
 # Create the FastAPI app
 app = FastAPI(
-    title="LifeScribe API",
-    description="API for the LifeScribe application with support for streaming and interim messages",
+    title="Move 37 API",
+    description="API for the Move 37 application with support for streaming and interim messages",
     version="1.1.0"
 )
 
@@ -77,7 +77,7 @@ async def root():
     Returns:
         Welcome message.
     """
-    return {"message": "Welcome to the LifeScribe API"}
+    return {"message": "Welcome to the Move 37 API"}
 
 
 @app.post("/record", response_model=RecordResponse)

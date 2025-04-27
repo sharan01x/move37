@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-File handling utilities for the LifeScribe application.
+File handling utilities for the Move 37 application.
 """
 
 import base64

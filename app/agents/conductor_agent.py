@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Conductor agent for the LifeScribe application.
+Conductor agent for the Move 37 application.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple, Callable
@@ -31,14 +31,14 @@ from app.core.config import CONDUCTOR_LLM_PROVIDER, CONDUCTOR_LLM_MODEL, CHAT_AP
 
 
 class ConductorAgent(BaseAgent):
-    """Conductor agent for the LifeScribe application."""
+    """Conductor agent for the Move 37 application."""
     
     def __init__(self, good_response_threshold: int = 85):
         """Initialize the Conductor agent."""
         # Initialize BaseAgent with required parameters
         super().__init__(
             name="Conductor",
-            description="Orchestrates the flow of information between different agents in the LifeScribe application.",
+            description="Orchestrates the flow of information between different agents in the Move 37 application.",
             role="Conductor",
             goal="Coordinate different agents to process user queries and provide accurate responses."
         )

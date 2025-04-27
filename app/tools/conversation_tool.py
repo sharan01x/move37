@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Tool for accessing past conversations in the LifeScribe application.
+Tool for accessing past conversations in the Move 37 application.
 """
 
 from typing import Dict, Any, List, Optional

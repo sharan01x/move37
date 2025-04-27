@@ -28,15 +28,15 @@ type ConversationHistoryMap = Record<string, Message[]>;
 const agentDefinitions: Agent[] = [
     {
         id: 'all',
-        name: 'Group Chat',
-        description: 'Chat with all agents',
+        name: 'Ask Around',
+        description: 'Get multiple perspectives',
         icon: 'users',
         color: 'blue'
     },
     {
         id: 'first_responder',
         name: 'First Responder',
-        description: 'General knowledge assistant',
+        description: 'General knowledge specialist',
         icon: 'comment-medical',
         color: 'green'
     },

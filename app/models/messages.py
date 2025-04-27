@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Message models for the LifeScribe application.
+Message models for the Move 37 application.
 """
 
 from pydantic import BaseModel

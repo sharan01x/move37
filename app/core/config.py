@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Configuration settings for the LifeScribe application.
+Configuration settings for the Move 37 application.
 """
 
 import os

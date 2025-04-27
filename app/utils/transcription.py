@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Transcription utilities for the LifeScribe application.
+Transcription utilities for the Move 37 application.
 
 This module provides utilities for extracting text content from various file formats
 including text files, PDFs, Word documents, Markdown, and audio files.

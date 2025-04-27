@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Base agent class for the LifeScribe application.
+Base agent class for the Move 37 application.
 """
 
 import os
@@ -30,7 +30,7 @@ from app.core.config import (
 
 
 class BaseAgent:
-    """Base agent class for the LifeScribe application."""
+    """Base agent class for the Move 37 application."""
     
     def __init__(self, name: str, description: str, role: str, goal: str, tools: List[BaseTool] = None, llm_provider: str = None, llm_model: str = None):
         """

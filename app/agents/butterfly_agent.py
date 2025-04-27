@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Butterfly agent for the LifeScribe application.
+Butterfly agent for the Move 37 application.
 Specializes in posting messages to social media platforms via GUI automation.
 """
 

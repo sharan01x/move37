@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Models for storing past conversations in the LifeScribe application.
+Models for storing past conversations in the Move 37 application.
 """
 
 from typing import Dict, Any, Optional

@@ -5,6 +5,7 @@
   import UserProfile from './UserProfile.svelte';
   import { connectRecallWebSocket, connectRecordWebSocket } from '$lib/services/websocket';
   import { initializeWebSocketHandlers } from '$lib/services/websocketHandlers';
+  import { darkMode } from '$lib/stores/themeStore';
   
   // Current mode (recall or record)
   let currentMode: 'recall' | 'record' = 'recall';
@@ -31,6 +32,11 @@
   function toggleUserProfile() {
     isUserProfileOpen = !isUserProfileOpen;
   }
+  
+  // Toggle dark mode
+  function toggleDarkMode() {
+    darkMode.toggleTheme();
+  }
 </script>
 
 <div class="app-container">
@@ -53,6 +59,7 @@
     display: flex;
     overflow: hidden;
     background-color: var(--background-color, #ffffff);
+    position: relative;
   }
   
   /* CSS Variables */

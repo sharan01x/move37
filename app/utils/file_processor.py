@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-File processing utilities for the LifeScribe application.
+File processing utilities for the Move 37 application.
 
 This module provides utilities for processing uploaded files,
 including text extraction, transcription, and vectorization for semantic search.

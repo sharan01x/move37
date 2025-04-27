@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-LifeScribe Main Application Entry Point
+Move 37 Main Application Entry Point
 
-This module serves as the entry point for the LifeScribe application, 
+This module serves as the entry point for the Move 37 application, 
 which processes user data packages containing text, voice, and/or files.
 """
 

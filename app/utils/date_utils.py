@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Date/time utilities for the LifeScribe application.
+Date/time utilities for the Move 37 application.
 """
 
 from datetime import datetime

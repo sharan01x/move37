@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Persephone agent for the LifeScribe application.
+Persephone agent for the Move 37 application.
 Specializes in answering queries related to user facts stored in the database.
 """
 
