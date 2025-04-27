@@ -1,8 +1,10 @@
-# Move 37
+![Move37 Logo](images/Move37Logo-BlueGreyBackground.png)
 
-Move 37 is an AI assistant that helps you record, organize, and recall information and perform actions you want using your own computer. 
+We are at the beginning of a new goal-based paradigm of computing where you can simply describe what you need done without having to think about the steps you need to perform in between to achieve that task. You can describe the "what", because computers are smart enough to figure out the "how" in order to perform the task. This project is an attempt to make that reality come true.
 
-This project is covered by a license. Please review the license file (license.md) for further details.
+There are numerous reasons for why this application is architected the way it is, ensuring that the data resides only on the user's computer within the user's control. But that will be covered separately. 
+
+This project is entirely free for personal use but is covered by a license to ensure fair commercial usage. Please review the license file (license.md) for further details.
 
 
 ## Installation
@@ -36,7 +38,7 @@ python -m http.server 3000
 ```
 
 6. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
-a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/move37/uielements
+a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/resources.html
 b. A file with the social media account details at data/social_media/accounts.json. You can have one or more accounts use the following structure for the various supported platforms:
 
 ```

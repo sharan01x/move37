@@ -16,7 +16,11 @@
 
 <div class="sidebar">
   <div class="sidebar-header">
-    <h1>Move 37</h1>
+    <img 
+      src={$darkMode ? "/images/Move37Logo-DarkBackground.png" : "/images/Move37Logo-TransparentBackground.png"} 
+      alt="Move 37 Logo" 
+      class="app-logo" 
+    />
   </div>
   
   <div class="conversation-list">
@@ -67,10 +71,9 @@
     justify-content: space-between;
   }
 
-  .sidebar-header h1 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-color, #333333);
+  .app-logo {
+    max-width: 250px;
+    height: auto;
   }
 
   .conversation-list {
