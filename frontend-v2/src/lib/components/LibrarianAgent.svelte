@@ -44,6 +44,7 @@
       content: text,
       sender: 'User',
       agentId: 'librarian',
+      operationType: 'recall', // Explicitly specify recall operation
       timestamp: new Date(),
       attachments: [],
       queryId
@@ -55,8 +56,8 @@
     // Set loading state
     $isLoading = true;
     
-    // Use the updated sendChatMessage that now uses the proper message format
-    const success = sendChatMessage(text, queryId);
+    // Use the updated sendChatMessage that now includes operation type parameter
+    const success = sendChatMessage(text, queryId, [], undefined, 'recall');
     
     if (!success) {
       addSystemMessage('Failed to send message to Librarian. Please check your connection.');

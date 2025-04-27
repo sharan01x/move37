@@ -15,6 +15,7 @@
     conversationHistory
   } from '$lib/stores/agentsStore';
   import { sendChatMessage } from '$lib/stores/websocketStore';
+  import { recordWsService } from '$lib/services/websocketService';
   import { get } from 'svelte/store';
   import { v4 as uuidv4 } from 'uuid';
   
@@ -44,6 +45,7 @@
       content: text,
       sender: 'User',
       agentId: 'submissions',
+      operationType: 'record',
       timestamp: new Date(),
       attachments: [],
       queryId
@@ -55,8 +57,8 @@
     // Set loading state
     $isLoading = true;
     
-    // Use the updated sendChatMessage that now uses the proper message format
-    const success = sendChatMessage(text, queryId);
+    // Use sendChatMessage with the operation type parameter
+    const success = sendChatMessage(text, queryId, [], undefined, 'record');
     
     if (!success) {
       addSystemMessage('Failed to send message to Submissions. Please check your connection.');
@@ -88,8 +90,8 @@
   const promptTemplates = [
     "Record that I went to the gym today",
     "Remember that I took my medication at 8am",
-    "Save the recipe for chocolate chip cookies",
-    "Log my weight as 165 pounds today"
+    "Log my weight as 85.4 Kgs today",
+    "Note that I met with Sharan and discussed the following:",
   ];
   
   function addWelcomeMessage() {

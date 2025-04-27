@@ -52,6 +52,7 @@
       content: text,
       sender: 'User',
       agentId: 'butterfly',
+      operationType: 'recall', // Explicitly specify recall operation
       timestamp: new Date(),
       attachments: $fileAttachment ? [{
         id: $fileAttachment.id,
@@ -68,8 +69,8 @@
     // Set loading state
     $isLoading = true;
     
-    // Use the standard sendChatMessage - file uploads are now handled in ChatInterface
-    const success = sendChatMessage(text, queryId);
+    // Use the updated sendChatMessage that now includes operation type parameter
+    const success = sendChatMessage(text, queryId, [], undefined, 'recall');
     
     if (!success) {
       addSystemMessage('Failed to send message to Butterfly. Please check your connection.');

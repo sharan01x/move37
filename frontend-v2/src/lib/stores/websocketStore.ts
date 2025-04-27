@@ -118,13 +118,15 @@ export function disconnect(): void {
  * @param queryId Optional query ID to identify this message
  * @param attachments Optional file attachments
  * @param attachmentPath Optional file path for attachments already uploaded
+ * @param operationType Optional operation type ('record' or 'recall'), defaults to 'recall'
  * @returns Boolean indicating if the message was successfully sent
  */
 export function sendChatMessage(
   message: string, 
   queryId?: string, 
   attachments: any[] = [],
-  attachmentPath?: string
+  attachmentPath?: string,
+  operationType: 'record' | 'recall' = 'recall'
 ): boolean {
   if (!message.trim()) return false;
   
@@ -137,24 +139,55 @@ export function sendChatMessage(
   // Use provided queryId or generate a new one
   const messageQueryId = queryId || `q_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   
-  // Use the format expected by the backend API
-  const payload: any = {
-    type: "recall_query",
-    data: {
-      query: message,
-      user_id: userId,
-      target_agent: currentAgentId,
-      query_id: messageQueryId
+  // Use different payload and service based on operation type
+  if (operationType === 'record') {
+    // Create a record submission payload
+    const recordPayload = {
+      type: "record_submission",
+      data: {
+        content: message,
+        user_id: userId,
+        record_type: currentAgentId, // Use agent ID as record type
+        metadata: {
+          timestamp: new Date().toISOString()
+        },
+        query_id: messageQueryId
+      }
+    };
+    
+    console.log("Sending record submission:", recordPayload);
+    
+    // Use record WebSocket service
+    return recordWsService.send(recordPayload);
+  } else {
+    // Default to recall query
+    const recallPayload: {
+      type: string;
+      data: {
+        query: string;
+        user_id: string;
+        target_agent: string;
+        query_id: string;
+        attachment_file_path?: string; // Make this optional
+      }
+    } = {
+      type: "recall_query",
+      data: {
+        query: message,
+        user_id: userId,
+        target_agent: currentAgentId,
+        query_id: messageQueryId
+      }
+    };
+    
+    // For butterfly agent with attachment, add the attachment file path
+    if (currentAgentId === 'butterfly' && attachmentPath) {
+      recallPayload.data.attachment_file_path = attachmentPath;
     }
-  };
-  
-  // For butterfly agent with attachment, add the attachment file path
-  if (currentAgentId === 'butterfly' && attachmentPath) {
-    payload.data.attachment_file_path = attachmentPath;
+    
+    console.log("Sending recall query:", recallPayload);
+    
+    // Use recall service for chat messages
+    return recallWsService.send(recallPayload);
   }
-  
-  console.log("Sending recall query:", payload);
-  
-  // Use recall service for chat messages
-  return recallWsService.send(payload);
 } 

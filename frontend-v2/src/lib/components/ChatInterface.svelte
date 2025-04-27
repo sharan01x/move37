@@ -143,13 +143,15 @@
     // Generate a query ID for this message
     const queryId = uuidv4();
     
-    // Create a user message directly
+    // Create a user message directly - default to 'recall' operation
+    // Individual agent components will override this when appropriate
     const userMessage = {
       id: uuidv4(),
       type: 'user',
       content: message,
       sender: 'User',
       agentId: $activeAgent,
+      operationType: 'recall' as 'recall' | 'record', // Default to recall, agents can override
       timestamp: new Date(),
       attachments,
       queryId
@@ -211,7 +213,7 @@
         // Removed success status message
         
         // Now send the message with the attachment path
-        const success = sendChatMessage(message, queryId, [], filePath);
+        const success = sendChatMessage(message, queryId, [], filePath, userMessage.operationType);
         
         if (!success) {
           statusMessage.set('Failed to send message. Please check your connection.');
@@ -225,7 +227,7 @@
       }
     } else {
       // Standard message sending for other agents
-      const success = sendChatMessage(message, queryId);
+      const success = sendChatMessage(message, queryId, [], undefined, userMessage.operationType);
       
       if (!success) {
         statusMessage.set('Failed to send message. Please check your connection.');
