@@ -2,16 +2,13 @@
   import { onMount } from 'svelte';
   import Sidebar from './Sidebar.svelte';
   import ChatInterface from './ChatInterface.svelte';
-  import UserProfile from './UserProfile.svelte';
   import { connectRecallWebSocket, connectRecordWebSocket } from '$lib/services/websocket';
   import { initializeWebSocketHandlers } from '$lib/services/websocketHandlers';
   import { darkMode } from '$lib/stores/themeStore';
+  import { get } from 'svelte/store';
   
   // Current mode (recall or record)
   let currentMode: 'recall' | 'record' = 'recall';
-  
-  // User profile panel state
-  let isUserProfileOpen = false;
   
   // Initialize WebSocket connections on mount
   onMount(() => {
@@ -28,11 +25,6 @@
     currentMode = mode;
   }
   
-  // Toggle user profile panel
-  function toggleUserProfile() {
-    isUserProfileOpen = !isUserProfileOpen;
-  }
-  
   // Toggle dark mode
   function toggleDarkMode() {
     darkMode.toggleTheme();
@@ -40,13 +32,10 @@
 </script>
 
 <div class="app-container">
-  <Sidebar onUserProfileClick={toggleUserProfile} />
+  <Sidebar />
   
   <!-- Always show ChatInterface regardless of mode or record type -->
   <ChatInterface />
-  
-  <!-- User Profile Panel -->
-  <UserProfile isOpen={isUserProfileOpen} />
   
   <!-- CSS Variables -->
   <div class="css-variables"></div>

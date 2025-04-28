@@ -713,6 +713,20 @@
     background-color: var(--hover-color, #f0f0f0);
     border-color: var(--agent-responder-color, #10b981);
   }
+  
+  /* Dark mode overrides for template buttons */
+  :global(html.dark .template-button) {
+    background-color: #444;
+    border: 1px solid #666;
+    color: #ccc;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  
+  :global(html.dark .template-button:hover) {
+    background-color: #3d3d3d;
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
 
   /* Theme toggle button styles */
   .theme-toggle-button {
@@ -729,7 +743,7 @@
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s;
-    z-index: 100;
+    z-index: 15;
     background-color: var(--background-color, white);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   }

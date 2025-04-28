@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import '../app.postcss';
 	import { darkMode } from '$lib/stores/themeStore';
 	import { onMount } from 'svelte';
@@ -7,26 +7,27 @@
 	import ThemeInitializer from '$lib/components/ThemeInitializer.svelte';
 	import WebSocketNotification from '$lib/components/WebSocketNotification.svelte';
 	import WebSocketInitializer from '$lib/components/WebSocketInitializer.svelte';
-	import { writable } from 'svelte/store';
+	import { writable, type Writable } from 'svelte/store';
 	
-	// Store to manage user profile panel visibility
+	// Create a global store for user profile panel visibility
+	// Using a context instead of window property for better TypeScript integration
 	const isUserProfileOpen = writable(false);
 	
 	// Initialize on mount
 	onMount(() => {
 		// Listen for user profile button clicks (delegated event)
-		const handleProfileButtonClick = (event) => {
-			const target = event.target;
+		const handleProfileButtonClick = (event: MouseEvent) => {
+			const target = event.target as HTMLElement;
 			const profileButton = target.closest('.user-profile-button');
 			if (profileButton) {
 				isUserProfileOpen.update(value => !value);
 			}
 		};
 		
-		document.addEventListener('click', handleProfileButtonClick);
+		document.addEventListener('click', handleProfileButtonClick as EventListener);
 		
 		return () => {
-			document.removeEventListener('click', handleProfileButtonClick);
+			document.removeEventListener('click', handleProfileButtonClick as EventListener);
 		};
 	});
 </script>
@@ -86,16 +87,16 @@
 	/* Dark mode would be defined here */
 	:global(html.dark) {
 		/* Dark mode color overrides */
-		--text-color: #e2e8f0;
-		--light-text: #94a3b8;
-		--border-color: #2d3748;
-		--system-msg-bg: #1e293b;
-		--user-msg-bg: #334155;
-		--assistant-msg-bg: #1e293b;
-		--background-color: #111827;
-		--header-bg: #1f2937;
-		--hover-color: #1f2937;
-		--active-color: #2d3748;
-		--sidebar-bg: #1a202c;
+		--text-color: #e0e0e0;
+		--light-text: #a0a0a0;
+		--border-color: #333333;
+		--system-msg-bg: #222222;
+		--user-msg-bg: #333333;
+		--assistant-msg-bg: #222222;
+		--background-color: #1a1a1a;
+		--header-bg: #232323;
+		--hover-color: #2c2c2c;
+		--active-color: #333333;
+		--sidebar-bg: #212121;
 	}
 </style> 

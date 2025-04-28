@@ -4,24 +4,33 @@
   import { agents, setActiveAgent } from '$lib/stores/agentsStore';
   import { darkMode } from '$lib/stores/themeStore';
   import { activeSidebarItem, setActiveSidebarItem } from '$lib/stores/sidebarStore';
+  import { get } from 'svelte/store';
   
   // Props
-  export let onUserProfileClick: () => void;
+  export let isMobile: boolean = false;
   
   // Function to handle item selection
   function handleItemSelect(id: string) {
     setActiveSidebarItem(id);
   }
+  
+  // Toggle user profile panel by dispatching a custom event
+  function handleUserProfileClick() {
+    // Click event will be caught by the delegated handler in +layout.svelte
+    // No need to do anything else here
+  }
 </script>
 
 <div class="sidebar">
-  <div class="sidebar-header">
-    <img 
-      src={$darkMode ? "/images/Move37Logo-DarkBackground.png" : "/images/Move37Logo-TransparentBackground.png"} 
-      alt="Move 37 Logo" 
-      class="app-logo" 
-    />
-  </div>
+  {#if !isMobile}
+    <div class="sidebar-header">
+      <img 
+        src={$darkMode ? "/images/Move37Logo-DarkBackground.png" : "/images/Move37Logo-TransparentBackground.png"} 
+        alt="Move 37 Logo" 
+        class="app-logo" 
+      />
+    </div>
+  {/if}
   
   <div class="conversation-list">
     <!-- Agents Section -->
@@ -44,7 +53,7 @@
   </div>
   
   <div class="sidebar-footer">
-    <div id="userProfileButton" class="user-profile-button" on:click={onUserProfileClick}>
+    <div id="userProfileButton" class="user-profile-button" on:click={handleUserProfileClick}>
       <i class="fas fa-user-circle"></i>
       <span>User Profile</span>
     </div>

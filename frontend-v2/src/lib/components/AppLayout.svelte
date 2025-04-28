@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Sidebar from './Sidebar.svelte';
   import { darkMode } from '$lib/stores/themeStore';
+  import { setActiveSidebarItem } from '$lib/stores/sidebarStore';
   
   // Props
   export let showSidebar = true;
@@ -10,7 +11,6 @@
   // State
   let isMobile = false;
   let sidebarVisible = showSidebar && !isMobile;
-  let userPanelVisible = false; // Start with user panel hidden
 
   // Handle window resize for responsive layout
   function handleResize() {
@@ -23,41 +23,25 @@
     sidebarVisible = !sidebarVisible;
   }
   
-  // Toggle user panel visibility
-  function toggleUserPanel() {
-    userPanelVisible = !userPanelVisible;
-  }
-
-  // Handle user profile button click from the sidebar
-  function handleUserProfileClick(event: MouseEvent) {
-    // Listen for clicks on the user profile button
-    const target = event.target as HTMLElement;
-    if (target.closest('#userProfileButton') || target.id === 'userProfileButton') {
-      toggleUserPanel();
-    }
-  }
-  
   // Function to handle item selection
   function handleItemSelect(id: string) {
     setActiveSidebarItem(id);
   }
-
-  // Pass the toggleUserPanel function to the Sidebar
-  function handleSidebarUserProfileClick() {
-    toggleUserPanel();
-  }
   
+  // This function isn't actually used to toggle the profile directly
+  // It's used as a placeholder for the close button
+  function toggleUserPanel() {
+    // The actual toggle happens via the global event handler
+    // This is just to have a function to bind to the close button
+  }
+
   // Initialize on mount
   onMount(() => {
     handleResize();
     window.addEventListener('resize', handleResize);
     
-    // Add click listener for user profile button in sidebar
-    document.addEventListener('click', handleUserProfileClick);
-    
     return () => {
       window.removeEventListener('resize', handleResize);
-      document.removeEventListener('click', handleUserProfileClick);
     };
   });
 </script>
@@ -69,8 +53,12 @@
       <button class="menu-button" on:click={toggleSidebar} aria-label="Toggle menu">
         <i class="fas fa-bars"></i>
       </button>
-      <h1>Move 37</h1>
-      <button class="user-button" on:click={toggleUserPanel} aria-label="Toggle user panel">
+      <img 
+        src={$darkMode ? "/images/Move37Logo-DarkBackground.png" : "/images/Move37Logo-TransparentBackground.png"} 
+        alt="Move 37 Logo" 
+        class="mobile-logo" 
+      />
+      <button class="user-button user-profile-button" aria-label="Toggle user panel">
         <i class="fas fa-user"></i>
       </button>
     </div>
@@ -86,7 +74,7 @@
             <i class="fas fa-times"></i>
           </button>
         {/if}
-        <Sidebar onUserProfileClick={toggleUserPanel} />
+        <Sidebar isMobile={isMobile} />
       </div>
     {/if}
     
@@ -96,10 +84,10 @@
     </main>
     
     <!-- User Panel (optional) -->
-    {#if userPanelVisible}
+    {#if showUserPanel}
       <div class="user-panel" class:mobile={isMobile}>
         {#if isMobile}
-          <button class="close-panel" on:click={toggleUserPanel}>
+          <button class="close-panel user-profile-button" aria-label="Close panel">
             <i class="fas fa-times"></i>
           </button>
         {/if}
@@ -181,6 +169,11 @@
     background-color: var(--header-bg, #f9f9f9);
     border-bottom: 1px solid var(--border-color, #e0e0e0);
     z-index: 5;
+  }
+  
+  .mobile-logo {
+    max-width: 150px;
+    height: auto;
   }
   
   .mobile-header h1 {
