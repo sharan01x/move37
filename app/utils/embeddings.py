@@ -30,7 +30,6 @@ def get_embeddings_model():
                 response.raise_for_status()
                 return response.json()["embedding"]
             except Exception as e:
-                print(f"Error getting embeddings: {e}")
                 # Return a zero vector of the correct dimension as fallback
                 return [0.0] * EMBEDDING_MODEL_DIMENSIONS
     

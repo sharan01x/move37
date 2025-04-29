@@ -171,12 +171,10 @@ def parse_json_response(response_text: str) -> Optional[Dict[str, Any]]:
                 return result if isinstance(result, dict) else {"value": result}
                 
             # If no specific cleanup worked, log the error and return None
-            print(f"Failed to parse JSON after cleanup: {str(e)}")
             return None
             
         except (json.JSONDecodeError, TypeError) as e2:
             # Log the error for debugging
-            print(f"Failed to parse JSON after all cleanup attempts: {str(e2)}")
             return None
 
 

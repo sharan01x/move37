@@ -29,8 +29,6 @@ class RecorderVectorDBInterface(VectorDBInterface):
         
         # Initialize the base class with the user data directory path
         super().__init__(db_path=USER_DATA_DIR, user_id=user_id, dimension=dimension)
-        
-        print(f"[RecorderVectorDB] Initialized with path: {self.db_path}")
     
     def add_recording(self, text: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> str:
         """

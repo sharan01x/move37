@@ -19,7 +19,7 @@ from app.api.main import app
 
 def signal_handler(sig, frame):
     """Handle termination signals by forcibly exiting."""
-    print("\nSIGINT received. Shutting down gracefully...")
+    print("\nShutting down gracefully...")
     # Force kill after a short timeout if normal shutdown doesn't work
     def force_exit():
         time.sleep(5)

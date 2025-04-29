@@ -55,5 +55,4 @@ def standardize_timestamp(timestamp: str) -> str:
         dt = parse_datetime(timestamp)
         return format_for_storage(dt)
     except ValueError as e:
-        print(f"Warning: Could not standardize timestamp format: {timestamp}, Error: {e}")
         return timestamp 

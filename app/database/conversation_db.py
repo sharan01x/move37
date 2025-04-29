@@ -100,7 +100,6 @@ class ConversationDBInterface(VectorDBInterface):
         try:
             # Generate embedding for the full conversation
             full_conversation = f"User: {user_query}\nAgent: {agent_response}"
-            print(f"Generating embedding for conversation: '{full_conversation[:50]}...'")
             embedding = self.embeddings.embed_query(full_conversation)
             
             # Validate embedding dimensions
@@ -108,7 +107,6 @@ class ConversationDBInterface(VectorDBInterface):
             actual_dim = len(embedding)
             
             if actual_dim != expected_dim:
-                print(f"WARNING: Embedding dimension mismatch! Expected {expected_dim}, got {actual_dim}")
                 # Adjust embedding to match expected dimensions (truncate or pad)
                 if actual_dim > expected_dim:
                     embedding = embedding[:expected_dim]
@@ -142,20 +140,16 @@ class ConversationDBInterface(VectorDBInterface):
             with open(metadata_file, 'w') as f:
                 json.dump(metadata, f)
             
-            print(f"Adding conversation to vector database at path: {self.db_path}")
             # Add to vector database
             conversation_ids = self.add_vectors(
                 vectors=embedding_array,
                 metadata=[metadata]
             )
-            print(f"Successfully added conversation with ID: {conversation_id}")
         except Exception as e:
             # Log the error but don't crash the application
             print(f"ERROR storing conversation in vector database: {e}", flush=True)
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}", flush=True)
-            # Return the conversation ID directly since we can't add to the vector database
         
+        # Return the conversation ID directly since we can't add to the vector database
         return conversation_id
     
     def search_conversations(self, query: str, k: int = 5, min_score: float = 0.0) -> List[Dict[str, Any]]:

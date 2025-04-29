@@ -256,7 +256,6 @@ async def websocket_recall(websocket: WebSocket):
             try:
                 # For Butterfly agent with attachment, pass the attachment file path
                 if target_agent == "butterfly" and attachment_file_path:
-                    print(f"Passing attachment file path to Butterfly agent: {attachment_file_path}")
                     response = await conductor_agent.process_recall_operation(
                         data_package, 
                         message_callback,
@@ -703,7 +702,6 @@ async def upload_files(
         for file in files:
             # Debug logging for file MIME types
             logger.debug(f"File upload: {file.filename}, MIME type: {file.content_type}")
-            print(f"File upload: {file.filename}, MIME type: {file.content_type}")
             
             # Check if it's a markdown file by extension (regardless of reported MIME type)
             file_extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
@@ -714,12 +712,10 @@ async def upload_files(
             if is_markdown:
                 content_type = 'text/markdown'
                 logger.debug(f"Detected Markdown file by extension: {file.filename}")
-                print(f"Detected Markdown file by extension: {file.filename}")
             
             # Validate file type
             if content_type not in ALLOWED_FILE_TYPES:
                 logger.warning(f"File type not allowed: {content_type} for file {file.filename}")
-                print(f"File type not allowed: {content_type} for file {file.filename}")
                 continue
             
             # Validate file size
@@ -754,11 +750,9 @@ async def upload_files(
             file_db.update_file_status(file_id, "processing")
             
             # Trigger transcription in the background
-            print(f"REST endpoint: Triggering transcription for file ID: {file_id}")
             try:
                 # Create a background task for transcription
                 asyncio.create_task(file_processor.process_file(file_id, user_id))
-                print(f"REST endpoint: Transcription task created for file ID: {file_id}")
             except Exception as e:
                 print(f"REST endpoint: Error creating transcription task: {str(e)}")
                 # If transcription fails, mark as complete anyway
@@ -806,13 +800,9 @@ async def upload_social_media_image(
         user_dir = os.path.join(SOCIAL_MEDIA_TEMP_PATH, user_id)
         os.makedirs(user_dir, exist_ok=True)
         
-        print(f"Social media upload - User directory: {user_dir}")
-        
         # Validate file is an image by extension
         file_extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
         valid_image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
-        
-        print(f"Social media upload - File: {file.filename}, extension: {file_extension}")
         
         if file_extension not in valid_image_extensions:
             logger.warning(f"Invalid image format: {file_extension} for file {file.filename}")
@@ -825,8 +815,6 @@ async def upload_social_media_image(
         # Validate file size
         file_content = await file.read()
         file_size = len(file_content)
-        
-        print(f"Social media upload - File size: {file_size} bytes")
         
         if file_size > MAX_FILE_SIZE:
             logger.warning(f"File too large: {file_size} bytes for file {file.filename}")
@@ -841,21 +829,15 @@ async def upload_social_media_image(
         unique_filename = f"{timestamp}_{file.filename}"
         file_path = os.path.join(user_dir, unique_filename)
         
-        print(f"Social media upload - Generated file path: {file_path}")
-        
         # Save file
         try:
             with open(file_path, "wb") as f:
                 f.write(file_content)
             
-            print(f"Social media upload - File successfully written to: {file_path}")
             
             # Verify file was actually written
             if os.path.exists(file_path):
                 file_stat = os.stat(file_path)
-                print(f"Social media upload - File exists on disk, size: {file_stat.st_size} bytes")
-            else:
-                print(f"Social media upload - WARNING: File does not exist after write attempt: {file_path}")
         except Exception as write_error:
             print(f"Social media upload - ERROR writing file: {write_error}")
             raise
@@ -1007,29 +989,19 @@ async def websocket_record(websocket: WebSocket):
                     vectorizer = FileVectorizer(user_id)
                     
                     # First delete existing vectors
-                    print(f"[VECTOR DEBUG] Deleting existing vectors for file {file_id} after text update via WebSocket")
                     deletion_success = vectorizer.delete_existing_vectors(file_id)
-                    print(f"[VECTOR DEBUG] Deletion of existing vectors for file {file_id}: {deletion_success}")
                     
                     # Then create new vectors
-                    print(f"[VECTOR DEBUG] Starting vectorization for updated content via WebSocket: file_id={file_id}")
-                    print(f"[VECTOR DEBUG] Text content length: {len(text_content) if text_content else 0}")
-                    
                     vectorization_result = vectorizer.vectorize_file(
                         file_id, 
                         text_content, 
                         file_info
                     )
-                    print(f"[VECTOR DEBUG] File vectorization result for WebSocket updated content: {vectorization_result}")
-                    
+
                     if not vectorization_result:
                         # Only update status if vectorization failed
-                        print(f"[VECTOR DEBUG] Updating file status to 'vectorization_error' for file_id={file_id}")
                         file_db.update_file_status(file_id, "vectorization_error", user_id)
                 except Exception as ve:
-                    print(f"[VECTOR DEBUG] Error vectorizing updated file content via WebSocket for {file_id}: {str(ve)}")
-                    import traceback
-                    print(f"[VECTOR DEBUG] Traceback: {traceback.format_exc()}")
                     file_db.update_file_status(file_id, "vectorization_error", user_id)
             
             # Send response
@@ -1212,35 +1184,21 @@ async def websocket_record(websocket: WebSocket):
                 
                 logger = logging.getLogger(__name__)
                 
-                logger.info(f"[VECTOR DEBUG] Attempting to delete vectors for file {file_id} BEFORE file deletion")
-                print(f"[VECTOR DEBUG] Attempting to delete vectors for file {file_id} BEFORE file deletion")
-                
-                # We're now using the file metadata to track vectors in the related_vectors field
-                logger.info(f"[VECTOR DEBUG] Checking file metadata for vectors associated with file_id={file_id}")
-                print(f"[VECTOR DEBUG] Checking file metadata for vectors associated with file_id={file_id}")
-                
                 # Delete vectors for the file
                 vectorizer = FileVectorizer(user_id)
                 vectors_deleted = vectorizer.delete_existing_vectors(file_id)
                 
-                logger.info(f"[VECTOR DEBUG] Vectors deleted for file {file_id}: {vectors_deleted}")
-                print(f"[VECTOR DEBUG] Vectors deleted for file {file_id}: {vectors_deleted}")
             except Exception as e:
                 logger.error(f"[VECTOR DEBUG] Error deleting vectors for file {file_id}: {str(e)}")
-                print(f"[VECTOR DEBUG] Error deleting vectors for file {file_id}: {str(e)}")
-                logger.error(f"[VECTOR DEBUG] Traceback: {traceback.format_exc()}")
-                print(f"[VECTOR DEBUG] Traceback: {traceback.format_exc()}")
-            
+                
             # Now delete the file after vectors have been deleted
             success = file_db.delete_file(file_id=file_id, user_id=user_id)
             
             # Log the result of file deletion
             if success:
                 logger.info(f"[VECTOR DEBUG] File {file_id} deleted successfully after vector deletion")
-                print(f"[VECTOR DEBUG] File {file_id} deleted successfully after vector deletion")
             else:
                 logger.warning(f"[VECTOR DEBUG] Failed to delete file {file_id} after vector deletion")
-                print(f"[VECTOR DEBUG] Failed to delete file {file_id} after vector deletion")
             
             # Send response
             await websocket_handler.message_service.send_message(

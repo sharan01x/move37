@@ -50,7 +50,6 @@ class ButterflyAgent(BaseAgent):
                 channel = tool.name.replace("Post to ", "").lower()
                 self.channel_tool_map[channel] = tool
         
-        print(f"[ButterflyAgent] Initialized channel-tool map: {self.channel_tool_map.keys()}")
 
     def get_user_accounts(self, user_id: str) -> Union[Dict[str, Any], str]:
         """
@@ -85,14 +84,12 @@ class ButterflyAgent(BaseAgent):
                     })
             
             if not channels:
-                print(f"[ButterflyAgent] No channel configurations found in accounts for user {user_id}")
                 return f"No channel configurations found for user {user_id}."
                 
             # Format as JSON for clear presentation in the prompt
             return json.dumps(channels, indent=2)
             
         except Exception as e:
-            print(f"[ButterflyAgent] Error processing account data for user {user_id}: {e}")
             return f"Error processing account data for user {user_id}: {str(e)}"
 
     async def _post_to_accounts(self, content: str, targets: List[Dict[str, str]], user_id: str, attachment_file_path: Optional[str] = None) -> Dict[str, Any]:
@@ -138,10 +135,6 @@ class ButterflyAgent(BaseAgent):
                 continue
                 
             try:
-                print(f"[ButterflyAgent] Posting to {channel_id}/{account_name}: {content[:30]}...")
-                if attachment_file_path:
-                    print(f"[ButterflyAgent] With attachment: {attachment_file_path}")
-                
                 # Set user_id context on the tool
                 tool.user_id = user_id
                 
@@ -164,7 +157,6 @@ class ButterflyAgent(BaseAgent):
                     tool.user_id = None
                     
             except Exception as e:
-                print(f"[ButterflyAgent] Error posting to {channel_id}/{account_name}: {e}")
                 results.append({
                     "channel": channel_id,
                     "account": account_name,
@@ -281,8 +273,6 @@ class ButterflyAgent(BaseAgent):
                     temperature=0.0
                 )
 
-                print(f"[Butterfly Agent] The LLM Output: \n {response_text}")
-
                 # Extract JSON from response text
                 json_str = None
                 json_blocks = re.findall(r'```(?:json)?\s*([\s\S]*?)```', response_text)
@@ -310,7 +300,6 @@ class ButterflyAgent(BaseAgent):
                     
                     # Get filtered accounts
                     accounts_list = get_user_accounts(user_id, account_type=account_type, channel=channel)
-                    print(f"[Butterfly Agent] List of accounts to post the text to:\n {accounts_list}")
                     
                     # Now, if the accounts_list is not empty, send the list of accounts to the _post_to_accounts function to execute
                     if accounts_list:
@@ -347,9 +336,8 @@ class ButterflyAgent(BaseAgent):
                         if attachment_file_path and os.path.exists(attachment_file_path):
                             try:
                                 os.remove(attachment_file_path)
-                                print(f"[Butterfly Agent] Deleted temporary file: {attachment_file_path}")
                             except Exception as e:
-                                print(f"[Butterfly Agent] Failed to delete temporary file: {e}")
+                                pass
                         
                         return result
                     else:
@@ -366,21 +354,17 @@ class ButterflyAgent(BaseAgent):
                         return self.format_response(error_msg)
                 else:
                     # Handle case where we couldn't extract valid JSON
-                    print(f"[Butterfly Agent] Could not parse valid JSON from LLM response: {response_text}")
                     return self.format_response("Could not understand your request. Please try again with clearer instructions about what to post and where.")
                 
                 if not response_text:
                     raise ValueError("Empty response from Ollama")
                     
             except requests.RequestException as e:
-                print(f"[Butterfly Agent] Ollama API request failed: {e}")
                 raise
             except ValueError as e:
-                print(f"[Butterfly Agent] Failed to parse Ollama response: {e}")
                 raise
 
         except Exception as e:
-            print(f"[Butterfly Agent] Error processing query: {e}")
             traceback.print_exc()
             return {
                 "agent_name": self.name,

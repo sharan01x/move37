@@ -102,7 +102,6 @@ class BaseAgent:
             message: Message to send.
         """
         if self.message_callback:
-            print(f"{self.name} agent sending message: {message}")
             await self.message_callback(message)
             
     def set_message_callback(self, callback: Callable[[str], None]):

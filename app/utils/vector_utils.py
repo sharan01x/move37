@@ -206,48 +206,27 @@ def delete_vectors_from_index(
     try:
         # Check if database path exists
         if not os.path.exists(db_path):
-            logger.warning(f"Database path not found: {db_path}")
             return False
             
-        logger.debug(f"Deleting vectors with IDs: {ids} from {db_path}")
-        
-        # Debug the path being used
-        logger.debug(f"[VECTOR DEBUG] Looking for vector files in directory: {db_path}")
-        print(f"[VECTOR DEBUG] Looking for vector files in directory: {db_path}")
-        
         # Get all metadata files (any JSON file in the vectors directory)
         metadata_files = [f for f in os.listdir(db_path) if f.endswith('.json')]
-        logger.debug(f"[VECTOR DEBUG] Found {len(metadata_files)} metadata files in vectors directory")
-        print(f"[VECTOR DEBUG] Found {len(metadata_files)} metadata files in vectors directory")
         
         # Delete vector files first
         deleted_files = []
         for vector_id in ids:
-            logger.debug(f"[VECTOR DEBUG] Processing vector ID for deletion: {vector_id}")
-            print(f"[VECTOR DEBUG] Processing vector ID for deletion: {vector_id}")
             
             # Remove metadata file
             metadata_path_full = os.path.join(db_path, f"{vector_id}.json")
-            logger.debug(f"[VECTOR DEBUG] Attempting to delete file: {metadata_path_full}")
-            print(f"[VECTOR DEBUG] Attempting to delete file: {metadata_path_full}")
             
             if os.path.exists(metadata_path_full):
                 os.remove(metadata_path_full)
                 deleted_files.append(metadata_path_full)
-                logger.debug(f"[VECTOR DEBUG] Successfully removed metadata file for vector ID: {vector_id}")
-                print(f"[VECTOR DEBUG] Successfully removed metadata file for vector ID: {vector_id}")
             else:
                 logger.warning(f"[VECTOR DEBUG] Metadata file not found: {metadata_path_full}")
-                print(f"[VECTOR DEBUG] Metadata file not found: {metadata_path_full}")
-        
-        logger.debug(f"[VECTOR DEBUG] Deleted {len(deleted_files)} vector files: {deleted_files}")
-        print(f"[VECTOR DEBUG] Deleted {len(deleted_files)} vector files: {deleted_files}")
         
         # For FAISS index, we need to rebuild it from scratch since we can't reliably map IDs to indices
         # This is a more reliable approach than trying to remove specific vectors
         try:
-            logger.debug(f"[VECTOR DEBUG] Rebuilding FAISS index after vector deletion")
-            print(f"[VECTOR DEBUG] Rebuilding FAISS index after vector deletion")
             
             # Create a new index
             dimension = index.d  # Get dimension from existing index
@@ -255,8 +234,6 @@ def delete_vectors_from_index(
             
             # Get remaining vector files
             remaining_files = [f for f in os.listdir(db_path) if f.endswith('.json')]
-            logger.debug(f"[VECTOR DEBUG] Found {len(remaining_files)} remaining vector files")
-            print(f"[VECTOR DEBUG] Found {len(remaining_files)} remaining vector files")
             
             # Add remaining vectors to the new index
             for i, metadata_file in enumerate(remaining_files):
@@ -271,19 +248,12 @@ def delete_vectors_from_index(
                         new_index.add(vector)
                 except Exception as e:
                     logger.error(f"[VECTOR DEBUG] Error processing vector file {metadata_file}: {str(e)}")
-                    print(f"[VECTOR DEBUG] Error processing vector file {metadata_file}: {str(e)}")
             
             # Save the new index
             faiss.write_index(new_index, index_path)
-            logger.debug(f"[VECTOR DEBUG] Successfully rebuilt and saved FAISS index with {new_index.ntotal} vectors")
-            print(f"[VECTOR DEBUG] Successfully rebuilt and saved FAISS index with {new_index.ntotal} vectors")
         except Exception as e:
             logger.error(f"[VECTOR DEBUG] Error rebuilding FAISS index: {str(e)}")
-            print(f"[VECTOR DEBUG] Error rebuilding FAISS index: {str(e)}")
             # Continue anyway since we've already deleted the vector files
-        
-        # We've already rebuilt the index above, so no need to remove vectors here
-        logger.info(f"Successfully deleted vector files for the given IDs: {ids}")
         
         return True
     except Exception as e:

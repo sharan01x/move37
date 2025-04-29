@@ -46,10 +46,7 @@ def get_user_accounts(user_id: str, account_type: str = None, channel: str = Non
     """
     settings_file = os.path.join("data", "social_media", user_id, "accounts.json")
 
-    print(f"[Settings] Attempting to load accounts from: {settings_file}")
-
     if not os.path.exists(settings_file):
-        print(f"[Settings] Error: Settings file not found at {settings_file}")
         return {}
 
     try:
@@ -77,16 +74,11 @@ def get_user_accounts(user_id: str, account_type: str = None, channel: str = Non
         # Convert to dictionary with account names as keys
         accounts_dict = {acc["name"]: acc for acc in filtered_accounts if acc.get("name")}
 
-        print(f"[Settings] Successfully loaded {len(accounts_dict)} account(s) matching criteria for user {user_id}")
         return accounts_dict
 
     except json.JSONDecodeError:
-        print(f"[Settings] Error: Invalid JSON format in {settings_file}")
         return {}
     except Exception as e:
-        print(f"[Settings] Error loading accounts from {settings_file}: {e}")
-        import traceback
-        traceback.print_exc()
         return {}
 
 def _get_settings(user_id: str, platform: str, account_name: str) -> Optional[Dict[str, Any]]:
@@ -95,10 +87,7 @@ def _get_settings(user_id: str, platform: str, account_name: str) -> Optional[Di
     settings_file = os.path.join("data", "social_media", user_id, "accounts.json")
     ui_base_path = os.path.join("data", "social_media", user_id, "ui_elements")
 
-    print(f"[Settings] Attempting to load settings from: {settings_file}")
-
     if not os.path.exists(settings_file):
-        print(f"[Settings] Error: Settings file not found at {settings_file}")
         return None
 
     try:
@@ -113,7 +102,6 @@ def _get_settings(user_id: str, platform: str, account_name: str) -> Optional[Di
                 break
 
         if not found_account:
-            print(f"[Settings] Error: No account found for name '{account_name}' on platform '{platform}' in {settings_file}")
             return None
 
         # Reconstruct the nested structure expected by posters using DummySettings
@@ -130,20 +118,14 @@ def _get_settings(user_id: str, platform: str, account_name: str) -> Optional[Di
         # Add the user-specific UI path to the account object
         setattr(account_obj, 'ui_base_path', ui_base_path)
 
-        print(f"[Settings] Successfully loaded settings for {account_name} on {platform}")
-        print(f"[Settings] Determined UI base path: {ui_base_path}")
         return {
             "channel": channel_obj,
             "account": account_obj
         }
 
     except json.JSONDecodeError:
-        print(f"[Settings] Error: Invalid JSON format in {settings_file}")
         return None
     except Exception as e:
-        print(f"[Settings] Error loading or processing settings from {settings_file}: {e}")
-        import traceback
-        traceback.print_exc()
         return None
 
 
@@ -164,10 +146,8 @@ class PlatformPoster:
         default_ui_path = "UI" # Default if not found in settings
         if settings and settings.get('account') and hasattr(settings['account'], 'ui_base_path'):
             self.ui_base_path = settings['account'].ui_base_path
-            print(f"[PlatformPoster Init] Using UI path from settings: {self.ui_base_path}")
         else:
             self.ui_base_path = default_ui_path
-            print(f"[PlatformPoster Init] UI path not found in settings, using default: {self.ui_base_path}")
 
     def resize_image_for_channel(self, image_path: str, max_size_bytes: int) -> str:
         """
@@ -208,7 +188,6 @@ class PlatformPoster:
 
                     if new_width < 100 or new_height < 100:
                         # Stop if dimensions become too small, even if size is still too large
-                        print(f"[Resize] Warning: Could not resize below {new_width}x{new_height} while maintaining quality/scale constraints.")
                         break
 
                     resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
@@ -225,7 +204,6 @@ class PlatformPoster:
 
             return resized_path
         except Exception as e:
-            print(f"[Resize] Error resizing image {image_path}: {e}")
             # Raise the error to be caught by the calling post method
             raise
 
@@ -246,7 +224,6 @@ class PlatformPoster:
         
         # Use the ui_base_path stored during initialization
         if not os.path.isdir(self.ui_base_path):
-            print(f"[Find on Screen] Error: Configured UI directory not found at: {os.path.abspath(self.ui_base_path)}")
             return False # Cannot proceed without UI assets
 
         folders = ["retina", "regular", "retina compact"]
@@ -259,12 +236,10 @@ class PlatformPoster:
         for folder in folders:
             # Construct the full path to the image asset
             image_path = os.path.join(self.ui_base_path, folder, image_name)
-            # print(f"[Find on Screen] Trying to find {image_path}") # Verbose
 
             scale = 0.5 if "retina" in folder else 1.0
 
             if not os.path.exists(image_path):
-                # print(f"[Find on Screen] Image path does not exist: {image_path}") # Verbose
                 continue
 
             try:
@@ -275,26 +250,20 @@ class PlatformPoster:
                     x, y = location
                     x = int(x * scale)
                     y = int(y * scale)
-                    print(f"[Find on Screen] Found '{image_name}' in '{folder}' at scaled coordinates: ({x}, {y})")
                     if move or click or double_click: # Move before clicking/double-clicking
                          pyautogui.moveTo(x, y, duration=0.2, tween=pyautogui.easeOutQuad) # Small duration for smoother move
                          time.sleep(0.1) # Pause after moving
                     if click:
                         pyautogui.click(x, y)
-                        print(f"[Find on Screen] Clicked at ({x}, {y})")
                     elif double_click: # Use elif because double_click implies click
                         pyautogui.doubleClick(x, y)
-                        print(f"[Find on Screen] Double-clicked at ({x}, {y})")
                     return True
             except pyautogui.ImageNotFoundException:
-                # print(f"[Find on Screen] Image not found on screen: {image_path}") # Verbose
                 continue
             except Exception as e:
-                 print(f"[Find on Screen] Error processing {image_path}: {e}")
                  # Potentially permissions errors or other pyautogui issues
                  continue # Try next folder
 
-        print(f"[Find on Screen] Element '{image_name}' not found on screen after checking all folders.")
         return False
     
     def get_region(self, region_name=None, scale=1):
@@ -316,8 +285,6 @@ class PlatformPoster:
         }
         # Fallback to full area if quadrant is not recognized
         search_region = region_map.get(region_name, region_map[None])
-    
-        print(f"[Get Region] Searching in '{region_name}' region: {search_region}")
     
         return search_region
 
@@ -364,7 +331,6 @@ class LinkedInPoster(PlatformPoster):
     def post(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, Optional[str]]:
         account = settings.get("account")
         if not account or not hasattr(account, 'type'):
-            print("[LinkedIn] Error: No account or no type in account.", account)
             return False, "Invalid or missing LinkedIn account."
         if account.type == "company":
             return self._post_to_company(content, variant, settings)
@@ -374,7 +340,6 @@ class LinkedInPoster(PlatformPoster):
     def _post_to_personal(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, Optional[str]]:
         account = settings.get("account")
         try:
-            print("[LinkedIn Personal] Starting GUI automation...")
             import webbrowser
             import time
             import pyautogui
@@ -382,73 +347,54 @@ class LinkedInPoster(PlatformPoster):
 
             posting_url = account.settings.get("posting_url")
             if not posting_url:
-                print("[LinkedIn Personal] Error: Posting URL not found in account settings:", account.settings)
                 return False, "Posting URL not found in settings"
 
-            print(f"[LinkedIn Personal] Opening browser with URL: {posting_url}")
             webbrowser.open(posting_url)
-            print("[LinkedIn Personal] Waiting for browser window...")
             time.sleep(3)
 
             # Locate the posting area and click into it
             if not self.find_on_screen('LinkedInPersonalStartAPost.png', click=True):
-                print("[LinkedIn Personal] Error: Posting area not found")
                 return False, "Posting area not found on screen"
 
             time.sleep(2)
             # Type content
-            print(f"[LinkedIn Personal] Writing post content: {content[:50]}...")
             pyautogui.write(content, interval=0.025)
             time.sleep(3)
 
             if variant.image_path:
-                print(f"[LinkedIn Personal] Post includes image: {variant.image_path}")
                 full_image_path = variant.image_path
                 if not os.path.exists(full_image_path):
-                    print(f"[LinkedIn Personal] Image not found: {full_image_path}")
                     return False, "[LinkedIn Personal] Image not found."
                 if self.find_on_screen('LinkedInMediaButton.png', click=True):
                     time.sleep(3)
-                    print("[LinkedIn Personal] Opening file dialog...")
                     pyautogui.hotkey('command', 'shift', 'g')
-                    print(f"[LinkedIn Personal] Writing image path: {full_image_path}")
                     pyautogui.write(full_image_path)
                     pyautogui.press('enter')
                     time.sleep(2)
-                    print("[LinkedIn Personal] Confirming file selection...")
                     pyautogui.press('enter')
                     time.sleep(3)
 
                     # Click the Next button
                     if not self.find_on_screen('LinkedInNextButton.png', click=True):
-                        print("[LinkedIn Personal] Error: Next button not found")
                         return False, "Next button not found on screen"
 
                 else:
-                    print("[LinkedIn Personal] Error: Media button not found")
                     # But it's possible that the media button is not present because the post contains a link and therefore a preview is already shown, so just continue to the next step
                     pass
 
             # Click the Post button
             if not self.find_on_screen('LinkedInPostButton.png', click=True):
-                print("[LinkedIn Personal] Error: Post button not found")
                 return False, "Post button not found on screen"
 
             time.sleep(4)
-            print("[LinkedIn Personal] Closing browser window...")
             pyautogui.hotkey('command', 'w')
-            print("[LinkedIn Personal] Post completed successfully")
             return True, "[LinkedIn Personal] Post completed successfully"
         except Exception as e:
-            print(f"[LinkedIn Personal] Error during GUI automation: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return False, f"GUI automation error: {str(e)}"
 
     def _post_to_company(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, Optional[str]]:
         account = settings.get("account")
         try:
-            print("[LinkedIn Company] Starting GUI automation...")
             import webbrowser
             import time
             import pyautogui
@@ -456,57 +402,40 @@ class LinkedInPoster(PlatformPoster):
 
             posting_url = account.settings.get("posting_url")
             if not posting_url:
-                print("[LinkedIn Company] Error: Posting URL not found in account settings:", account.settings)
                 return False, "Posting URL not found in settings"
-            print(f"[LinkedIn Company] Opening browser with URL: {posting_url}")
             webbrowser.open(posting_url)
-            print("[LinkedIn Company] Waiting for browser window and page load...")
             time.sleep(5)  # Increased wait time for page load
 
             # Type content
-            print(f"[LinkedIn Company] Writing post content: {content[:50]}...")
             pyautogui.write(content, interval=0.025)
             time.sleep(2)
             if variant.image_path:
-                print(f"[LinkedIn Company] Post includes image: {variant.image_path}")
                 full_image_path = variant.image_path
                 if not os.path.exists(full_image_path):
-                    print(f"[LinkedIn Company] Image not found: {full_image_path}")
                     return False, "[LinkedIn Company] Image not found."
                 if not self.find_on_screen('LinkedInMediaButton.png', click=True):
-                    print("[LinkedIn Company] Error: Media button not found")
                     return False, "Media button not found on screen"
                 
                 time.sleep(2)
-                print("[LinkedIn Company] Opening file dialog...")
                 pyautogui.hotkey('command', 'shift', 'g')
-                print(f"[LinkedIn Company] Writing image path: {full_image_path}")
                 pyautogui.write(full_image_path)
                 pyautogui.press('enter')
                 time.sleep(1)
-                print("[LinkedIn Company] Confirming file selection...")
                 pyautogui.press('enter')
                 time.sleep(2)
 
                 # Click the Next button
                 if not self.find_on_screen('LinkedInNextButton.png', click=True):
-                    print("[LinkedIn Company] Error: Next button not found")
                     return False, "Next button not found on screen"
 
             # Click the Post button
             if not self.find_on_screen('LinkedInPostButton.png', click=True):
-                print("[LinkedIn Company] Error: Post button not found")
                 return False, "Post button not found on screen"
 
             time.sleep(5)
-            print("[LinkedIn Company] Closing browser window...")
             pyautogui.hotkey('command', 'w')
-            print("[LinkedIn Company] Post completed successfully")
             return True, "[LinkedIn Company] Post completed successfully"
         except Exception as e:
-            print(f"[LinkedIn Company] Error during GUI automation: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return False, f"GUI automation error: {str(e)}"
 
 class FarcasterPoster(PlatformPoster):
@@ -517,7 +446,6 @@ class FarcasterPoster(PlatformPoster):
         
         account = settings.get("account")
         if not account.settings.get("mnemonic"):
-            print("[Farcaster] Error: Account mnemonic not found in settings:", account.settings)
             return False, "Farcaster mnemonic not found in account settings"
 
         # If there is an image, use GUI automation (Warpcast web)
@@ -528,28 +456,21 @@ class FarcasterPoster(PlatformPoster):
                 from farcaster import Warpcast
                 client = Warpcast(account.settings["mnemonic"])
                 if not client.get_healthcheck():
-                    print("[Farcaster] Error: Failed to connect to Farcaster API")
                     return False, "Failed to connect to Farcaster API"
                 client.post_cast(text=content)
-                print("[Farcaster] Post completed successfully (API)")
                 return True, "[Farcaster] Post completed successfully (API)"
             except Exception as e:
-                print(f"[Farcaster] Error posting via API: {e}")
-                import traceback
-                traceback.print_exc()
                 return False, str(e)
 
 
     def _post_with_gui(self, content: str, image_path: str, settings: dict) -> Tuple[bool, Optional[str]]:
         try:
-            print("[Farcaster] Starting GUI automation...")
             import webbrowser
             import time
             import pyautogui
 
             posting_url = settings.get("posting_url")
             if not posting_url:
-                print("[Farcaster] Error: No posting_url found in settings:", settings)
                 return False, "Posting URL not found in settings"
 
             browser = webbrowser.get()
@@ -558,7 +479,6 @@ class FarcasterPoster(PlatformPoster):
 
             # Click the "Cast" button
             if not self.find_on_screen('WarpcastCastButton.png', click=True):
-                print("[Farcaster] Error: Cast button not found")
                 return False, "Cast button not found on screen"
             time.sleep(3)
 
@@ -568,7 +488,6 @@ class FarcasterPoster(PlatformPoster):
             if image_path:
                 # Click the media button
                 if not self.find_on_screen('WarpcastMediaButton.png', click=True):
-                    print("[Farcaster] Error: Media button not found")
                     return False, "Media button not found on screen"
                 time.sleep(3)
                 pyautogui.hotkey('command', 'shift', 'g')
@@ -583,13 +502,9 @@ class FarcasterPoster(PlatformPoster):
             time.sleep(3)
             
             pyautogui.hotkey('command', 'w')
-            print("[Farcaster] Post completed successfully (GUI)")
             return True, "[Farcaster] Post completed successfully (GUI)"
 
         except Exception as e:
-            print(f"[Farcaster] Error during GUI automation: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return False, f"GUI automation error: {str(e)}"
 
 
@@ -615,12 +530,10 @@ class MastodonPoster(PlatformPoster):
     
     def post(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, Optional[str]]:
         try:
-            print("[Mastodon] Starting post process...")
             
             # Get account settings
             account = settings.get("account")
             if not account or not account.settings:
-                print("[Mastodon] Error: Account settings not found:", account)
                 raise ValueError("No Mastodon account configured")
 
             from mastodon import Mastodon
@@ -632,42 +545,25 @@ class MastodonPoster(PlatformPoster):
             # Handle image if present
             image_path = None  # Always initialize
             if variant.image_path:
-                print(f"[Mastodon] Processing image: {variant.image_path}")
                 image_path = self.resize_image_for_channel(variant.image_path, account.settings['max_image_size'])
 
             # Create post
-            print(f"[Mastodon] Creating post: {content[:50]}...")
             if image_path:
-                print("[Mastodon] Uploading media...")
                 media = client.media_post(image_path)
-                print("[Mastodon] Media uploaded successfully, posting with media...")
                 response = client.status_post(content, media_ids=[media['id']])
-                print("[Mastodon] Successfully posted with image")
             else:
-                print("[Mastodon] Posting without media...")
                 response = client.status_post(content)
-                print("[Mastodon] Successfully posted text")
 
             # Clean up resized image if it was created
             if image_path and image_path != variant.image_path:
                 try:
-                    print(f"[Mastodon] Cleaning up resized image: {image_path}")
                     os.remove(image_path)
-                    print("[Mastodon] Successfully cleaned up resized image")
                 except Exception as e:
-                    print(f"[Mastodon] Error cleaning up resized image: {e}")
-                    import traceback
-                    print("[Mastodon] Full error traceback:")
-                    traceback.print_exc()
+                    pass
 
-            print("[Mastodon] Post completed successfully")
             return True, "[Mastodon] Post completed successfully"
 
         except Exception as e:
-            print(f"[Mastodon] Error creating post: {str(e)}")
-            import traceback
-            print("[Mastodon] Full error traceback:")
-            traceback.print_exc()
             return False, str(e)
 
 
@@ -692,61 +588,40 @@ class BlueSkyPoster(PlatformPoster):
 
     def post(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, Optional[str]]:
         try:
-            print("[BlueSky] Starting post process...")
             
             # Get account settings
             account = settings.get("account")
             if not account or not account.settings:
-                print("[BlueSky] Error: Account settings not found:", account)
                 raise ValueError("No Bluesky account configured")
 
-            print(f"[BlueSky] Initializing client for handle: {account.settings['handle']}")    
             # Initialize client
             from atproto import Client
             client = Client()
             client.login(account.settings['handle'], account.settings['password'])
-            print("[BlueSky] Successfully logged in")
 
             # Handle image if present
             image_path = None  # Ensure always initialized
             if variant.image_path:
-                print(f"[BlueSky] Processing image: {variant.image_path}")
                 image_path = self.resize_image_for_channel(variant.image_path, account.settings['max_image_size'])
 
             # Create post
             if image_path:
-                print(f"[BlueSky] Creating post with image: {image_path}")
-                print(f"[BlueSky] Post content: {content[:50]}...")
                 with open(image_path, 'rb') as f:
                     image_data = f.read()
                 response = client.send_image(text=content, image=image_data, image_alt='Uploaded image')
-                print("[BlueSky] Successfully posted with image")
             else:
-                print("[BlueSky] Creating text-only post")
-                print(f"[BlueSky] Post content: {content[:50]}...")
                 response = client.send_post(text=content)
-                print("[BlueSky] Successfully posted text")
 
             # Clean up resized image if it was created
             if image_path and image_path != variant.image_path:
                 try:
-                    print(f"[BlueSky] Cleaning up resized image: {image_path}")
                     os.remove(image_path)
-                    print("[BlueSky] Successfully cleaned up resized image")
                 except Exception as e:
-                    print(f"[BlueSky] Error cleaning up resized image: {str(e)}")
-                    import traceback
-                    print("[BlueSky] Full error traceback:")
-                    traceback.print_exc()
+                    pass
 
-            print("[BlueSky] Post completed successfully")
             return True, "[BlueSky] Post completed successfully"
 
         except Exception as e:
-            print(f"[BlueSky] Error during posting: {str(e)}")
-            import traceback
-            print("[BlueSky] Full error traceback:")
-            traceback.print_exc()
             return False, str(e)
 
 
@@ -760,34 +635,25 @@ class LensPoster(PlatformPoster):
         try:
             return self._post_with_gui(content, variant, effective_settings)
         except Exception as e:
-            print(f"[Lens] Exception in LensPoster: {str(e)}")
             return False, f"GUI automation error: {str(e)}"
 
     def _post_with_gui(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, Optional[str]]:
         try:
-            print("[Lens] Starting GUI automation...")
 
             # Get account settings
             account = settings.get("account")
-            print("[Lens] Found account:", account)
             if not account or not getattr(account, 'settings', None):
-                print("[Lens] Error: Account settings not found. Account:", account)
-                print("[Lens] Account settings:", getattr(account, 'settings', None) if account else None)
                 return False, "No Lens account configured"
 
             if not account.settings.get('posting_url'):
-                print("[Lens] Error: Posting URL not found in settings:", account.settings)
                 return False, "Posting URL not found in settings"
 
             posting_url = account.settings['posting_url']
-            print(f"[Lens] Opening browser with URL: {posting_url}")
             webbrowser.open(posting_url)
-            print("[Lens] Waiting for browser window...")
             time.sleep(3)
 
             # Locate the posting area and click into it
             if not self.find_on_screen('HeyPostingArea.png', click=True, search_area='top-left'):
-                print("[Lens] Error: Posting area not found")
                 return False, "Posting area not found on screen"
 
             time.sleep(2)
@@ -795,51 +661,37 @@ class LensPoster(PlatformPoster):
             time.sleep(2)
 
             if variant.image_path:
-
-                print(f"[Lens] Post includes image: {variant.image_path}")
                 
                 # The image should be in the temporary_uploads folder, confirm it exists
                 if not os.path.exists(variant.image_path):
-                    print(f"[Lens] Image not found: {variant.image_path}")
                     return False, "[Lens] Image not found."
 
                 # Click the media button
                 if not self.find_on_screen('HeyMediaButton.png', click=True):
-                    print("[Lens] Error: Media button not found")
                     return False, "Media button not found on screen"
 
                 # Click the Upload images button
                 if not self.find_on_screen('HeyUploadImageButton.png', click=True):
-                    print("[Lens] Error: Upload button not found")
                     return False, "Upload button not found on screen"
 
                 # Wait for the file dialog to open
                 time.sleep(2)
-                print("[Lens] Opening file dialog...")
                 pyautogui.hotkey('command', 'shift', 'g')  # Go to the folder path
-                print(f"[Lens] Writing image path: {variant.image_path}")
                 pyautogui.write(variant.image_path)  # Write the file path
                 pyautogui.press('enter')
                 time.sleep(2)
-                print("[Lens] Confirming file selection...")
                 pyautogui.press('enter')  # This uploads the media
                 time.sleep(6)
 
             # Click the Post button
             if not self.find_on_screen('HeyPostButton.png', click=True):
-                print("[Lens] Error: Post button not found")
                 return False, "Post button not found on screen"
 
             time.sleep(4)
-            print("[Lens] Closing browser window...")
             pyautogui.hotkey('command', 'w')
-            print("[Lens] Post completed successfully")
             return True, "[Lens] Post completed successfully"
 
         except Exception as e:
-            print(f"[Lens] Error during GUI automation: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return False, f"GUI automation error: {str(e)}"
 
 
@@ -861,7 +713,6 @@ class TwitterPoster(PlatformPoster):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[Twitter] Exception in TwitterPoster: {str(e)}")
             return False, f"[Twitter] Exception in TwitterPoster: {str(e)}"
 
     def _post_with_api(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, str]:
@@ -891,7 +742,6 @@ class TwitterPoster(PlatformPoster):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[Twitter] Failed to post to account '{variant.account_name}' via API: {str(e)}")
             return False, f"[Twitter] Failed to post to account '{variant.account_name}' via API: {str(e)}"
 
     def _post_with_gui(self, content: str, variant: PostVariant, settings: dict) -> Tuple[bool, str]:
@@ -979,7 +829,6 @@ class TwitterPoster(PlatformPoster):
             
                 
         except Exception as e:
-            print(f"[Twitter] Error during GUI automation: {str(e)}")
             import traceback
             traceback.print_exc()
             # Attempt to close window in case of error
@@ -1011,10 +860,6 @@ class SocialMediaPostTool(BaseTool):
         if not self.user_id:
             return "Error: User context (user_id) not set for the tool."
 
-        print(f"[Tool Run] Attempting to post to {self.platform} account '{account_name}'")
-        if image_path:
-            print(f"[Tool Run] With image attachment: {image_path}")
-
         settings = _get_settings(self.user_id, self.platform, account_name)
         if not settings:
             return f"Error: Could not load settings for user '{self.user_id}', {self.platform.title()} account '{account_name}'."
@@ -1026,9 +871,6 @@ class SocialMediaPostTool(BaseTool):
             _success, message = poster.post(content, variant, settings)
             return message
         except Exception as e:
-            print(f"[Tool Run] Unhandled exception in {self.platform.title()}PostTool: {e}")
-            import traceback
-            traceback.print_exc()
             return f"An unexpected error occurred while trying to post to {self.platform.title()}: {str(e)}"
 
 # Instantiate the tools

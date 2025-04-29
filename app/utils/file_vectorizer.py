@@ -56,12 +56,9 @@ class FileVectorizer:
         old_mapping_file = self.vectors_dir / "file_vector_mapping.json"
         
         if not old_mapping_file.exists():
-            logger.debug(f"[VECTOR DEBUG] No mapping file exists at {old_mapping_file}, no migration needed")
             return
             
         try:
-            logger.debug(f"[VECTOR DEBUG] Found old mapping file at {old_mapping_file}, starting migration")
-            print(f"[VECTOR DEBUG] Found old mapping file at {old_mapping_file}, starting migration")
             
             # Load mapping data
             with open(old_mapping_file, "r") as f:
@@ -69,17 +66,11 @@ class FileVectorizer:
                 
             # Skip if empty
             if not mapping_data:
-                logger.debug(f"[VECTOR DEBUG] Mapping file is empty, no migration needed")
-                print(f"[VECTOR DEBUG] Mapping file is empty, no migration needed")
                 return
                 
-            logger.debug(f"[VECTOR DEBUG] Found {len(mapping_data)} entries in mapping file")
-            print(f"[VECTOR DEBUG] Found {len(mapping_data)} entries in mapping file")
             
             # Load metadata
             if not self.metadata_file.exists():
-                logger.warning(f"[VECTOR DEBUG] Metadata file doesn't exist at {self.metadata_file}, cannot migrate")
-                print(f"[VECTOR DEBUG] Metadata file doesn't exist at {self.metadata_file}, cannot migrate")
                 return
                 
             with open(self.metadata_file, "r") as f:
@@ -90,9 +81,6 @@ class FileVectorizer:
             for file_id, vector_ids in mapping_data.items():
                 for file_entry in metadata:
                     if file_entry.get("id") == file_id:
-                        if "vector_ids" in file_entry:
-                            logger.debug(f"[VECTOR DEBUG] File {file_id} already has vector_ids field")
-                        
                         # Add the vector IDs to related_vectors field
                         file_entry["related_vectors"] = vector_ids
                         
@@ -107,26 +95,18 @@ class FileVectorizer:
             if updates_count > 0:
                 with open(self.metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
-                    
-                logger.debug(f"[VECTOR DEBUG] Migration complete: updated {updates_count} file entries with vector IDs")
-                print(f"[VECTOR DEBUG] Migration complete: updated {updates_count} file entries with vector IDs")
+                
                 
                 # Rename the old mapping file
                 import os
                 backup_path = str(old_mapping_file) + ".bak"
                 os.rename(str(old_mapping_file), backup_path)
-                logger.debug(f"[VECTOR DEBUG] Renamed old mapping file to {backup_path}")
-                print(f"[VECTOR DEBUG] Renamed old mapping file to {backup_path}")
             else:
                 logger.debug(f"[VECTOR DEBUG] No files were updated during migration")
-                print(f"[VECTOR DEBUG] No files were updated during migration")
                 
         except Exception as e:
             logger.error(f"[VECTOR DEBUG] Error during mapping migration: {str(e)}")
-            print(f"[VECTOR DEBUG] Error during mapping migration: {str(e)}")
-            import traceback
-            logger.error(f"[VECTOR DEBUG] Migration error traceback: {traceback.format_exc()}")
-            print(f"[VECTOR DEBUG] Migration error traceback: {traceback.format_exc()}")
+            
     
     def vectorize_file(self, file_id: str, text_content: str, file_metadata: Dict[str, Any]) -> bool:
         """Vectorize file content and store embeddings.

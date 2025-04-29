@@ -150,21 +150,17 @@ class WebSocketConnectionHandler:
     
     async def handle_connection(self, websocket: WebSocket, client_id: str):
         """Handle a new WebSocket connection."""
-        print(f"New WebSocket connection from client {client_id}")  # Debug log
         await self.message_service.connect(websocket, client_id)
         try:
             while True:
                 message = await websocket.receive_text()
-                print(f"Received WebSocket message from client {client_id}: {message}")  # Debug log
                 try:
                     # Parse the message once
                     data = json.loads(message)
-                    print(f"Parsed message data: {data}")  # Debug log
                     
                     # Pass the parsed data directly to the message service
                     await self.message_service.handle_message(client_id, data)
                 except json.JSONDecodeError as e:
-                    print(f"Error parsing message: {e}")  # Debug log
                     # Send error message to client
                     await self.message_service.send_message(
                         client_id,
@@ -172,7 +168,6 @@ class WebSocketConnectionHandler:
                         {"message": f"Error parsing message: {str(e)}"}
                     )
                 except Exception as e:
-                    print(f"Error handling message: {e}")  # Debug log
                     # Send error message to client
                     await self.message_service.send_message(
                         client_id,
@@ -182,5 +177,4 @@ class WebSocketConnectionHandler:
         except Exception as e:
             print(f"Error in WebSocket connection: {e}")
         finally:
-            print(f"Closing WebSocket connection for client {client_id}")  # Debug log
             self.message_service.disconnect(client_id)

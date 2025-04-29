@@ -162,8 +162,6 @@ class ConductorAgent(BaseAgent):
             
             # Determine which agents to use based on target_agent
             target_agent = data_package.metadata.get('target_agent', 'all')
-            print(f"Target agent specified: {target_agent}")
-            
             agents_to_use = {}
             
             # If the target is "butterfly" (which is not in group_chat_agents), handle it separately
@@ -176,7 +174,6 @@ class ConductorAgent(BaseAgent):
             else:
                 agents_to_use = self.group_chat_agents.copy()
             
-            print(f"Using agents: {', '.join(agents_to_use.keys())}")
             
             if not agents_to_use:
                 return {
@@ -198,8 +195,6 @@ class ConductorAgent(BaseAgent):
             user_conversation_db = ConversationDBInterface(user_id=data_package.user_id)
             conversation_history = user_conversation_db.get_recent_conversation_history(user_id=data_package.user_id)
             
-            # Log the conversation history retrieval
-            print(f"Retrieved conversation history for user {data_package.user_id}: {len(conversation_history) if conversation_history else 0} characters")
             
             # Create tasks for each agent
             tasks = []
@@ -282,7 +277,6 @@ class ConductorAgent(BaseAgent):
                             responses.append(response)
                                 
                         except Exception as e:
-                            print(f"Error processing response from {agent_name}: {e}")
                             continue
             
                 # All tasks are complete, send the done signal
@@ -310,13 +304,11 @@ class ConductorAgent(BaseAgent):
                 }
                 
             except Exception as e:
-                print(f"Error processing tasks: {e}")
                 return {
                     "message": f"Error processing tasks: {str(e)}"
                 }
             
         except Exception as e:
-            print(f"Error in process_recall_operation: {e}")
             return {
                 "message": f"Error processing query: {str(e)}"
             }
@@ -463,7 +455,6 @@ class ConductorAgent(BaseAgent):
                         score = int(score)
                         score = max(0, min(100, score))  # Clamp to 0-100 range
                     except (ValueError, TypeError):
-                        print("Warning: Score in JSON is not a valid number, trying to extract from string")
                         score = extract_score_from_response(str(score), default_score=0, min_value=0, max_value=100)
                     
                     results.append((score, reasoning))
@@ -471,8 +462,6 @@ class ConductorAgent(BaseAgent):
                 return results
             else:
                 # Fallback to regex parsing if JSON parsing fails
-                print(f"Warning: Failed to parse QA response as JSON, falling back to regex. Response: {response_text}")
-                
                 # Extract evaluations using regex
                 results = []
                 for i in range(len(responses)):
