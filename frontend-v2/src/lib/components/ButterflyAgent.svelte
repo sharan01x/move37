@@ -7,7 +7,9 @@
     messageInput,
     isLoading,
     fileAttachment,
-    clearFileAttachment
+    clearFileAttachment,
+    registerMessageHandler,
+    type MessageHandler
   } from '$lib/stores/chatStore';
   import { 
     activeAgent, 
@@ -31,10 +33,115 @@
     setActiveAgent('butterfly');
   }
   
+  // Create a message handler to intercept message sending for Butterfly agent
+  const butterflyMessageHandler: MessageHandler = {
+    handleMessage: async (message: string, attachments: any[] = []) => {
+      console.log('Butterfly agent handling message:', message);
+      console.log('Current file attachment:', get(fileAttachment));
+      
+      // Generate a query ID for this message
+      const queryId = uuidv4();
+      
+      // Create a user message directly with recall operation type
+      const userMessage = {
+        id: uuidv4(),
+        type: 'user',
+        content: message,
+        sender: 'User',
+        agentId: 'butterfly',
+        operationType: 'recall', // Explicitly use recall operation for Butterfly
+        timestamp: new Date(),
+        attachments: attachments,
+        queryId
+      };
+      
+      // Add directly to the conversation history
+      addMessageToConversation('butterfly', userMessage);
+        
+      // Set loading state
+      $isLoading = true;
+      
+      // Special handling for file attachments
+      const currentFileAttachment = get(fileAttachment);
+      if (currentFileAttachment && currentFileAttachment.file) {
+        console.log('Butterfly agent with file attachment detected, handling file upload');
+        
+        const fileType = currentFileAttachment.type.startsWith('image/') ? 'image' : 'video';
+        
+        try {
+          // Upload the file using fetch
+          const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+          
+          console.log(`Uploading file to ${apiBaseUrl}/social_media/upload`);
+          
+          const formData = new FormData();
+          formData.append('file', currentFileAttachment.file);
+          formData.append('user_id', userId);
+          
+          const response = await fetch(`${apiBaseUrl}/social_media/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          
+          console.log('Response status:', response.status);
+          const result = await response.json();
+          console.log('Social media upload response:', result);
+          
+          if (!result.success) {
+            console.error('File upload failed:', result.message);
+            $isLoading = false;
+            clearFileAttachment();
+            return true;
+          }
+          
+          if (!result.file_ids || result.file_ids.length === 0) {
+            console.error('File upload returned no file path');
+            $isLoading = false;
+            clearFileAttachment();
+            return true;
+          }
+          
+          const filePath = result.file_ids[0];
+          console.log('File uploaded successfully, path:', filePath);
+          
+          // Now send the message with the attachment path
+          const success = sendChatMessage(message, queryId, [], filePath, 'recall');
+          
+          if (!success) {
+            addSystemMessage('Failed to send message to Butterfly. Please check your connection.');
+            $isLoading = false;
+          }
+          
+          // Clear file attachment after sending
+          clearFileAttachment();
+        } catch (error: any) {
+          console.error('Error uploading file:', error);
+          $isLoading = false;
+          clearFileAttachment();
+        }
+      } else {
+        // Standard message sending without file attachment
+        const success = sendChatMessage(message, queryId, [], undefined, 'recall');
+        
+        if (!success) {
+          addSystemMessage('Failed to send message to Butterfly. Please check your connection.');
+          $isLoading = false;
+        }
+      }
+      
+      return true;
+    }
+  };
+  
+  // Register the message handler when the agent is active
+  $: if (isActive) {
+    console.log('Registering butterfly message handler');
+    registerMessageHandler('butterfly', butterflyMessageHandler);
+  }
+  
   // Send a message specifically to Butterfly
   async function sendToButterfly(text: string) {
     console.log('sendToButterfly called with text:', text);
-    console.log('Current file attachment:', $fileAttachment);
     
     // Store the current agent
     const previousAgent = $activeAgent;
@@ -42,40 +149,8 @@
     // Switch to Butterfly temporarily
     setActiveAgent('butterfly');
     
-    // Generate a query ID for this message
-    const queryId = uuidv4();
-    
-    // Create a user message directly with the same structure as in ChatInterface
-    const userMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: text,
-      sender: 'User',
-      agentId: 'butterfly',
-      operationType: 'recall', // Explicitly specify recall operation
-      timestamp: new Date(),
-      attachments: $fileAttachment ? [{
-        id: $fileAttachment.id,
-        name: $fileAttachment.name,
-        type: $fileAttachment.type,
-        size: $fileAttachment.size
-      }] : [],
-      queryId
-    };
-    
-    // Add message directly to the conversation history
-    addMessageToConversation('butterfly', userMessage);
-    
-    // Set loading state
-    $isLoading = true;
-    
-    // Use the updated sendChatMessage that now includes operation type parameter
-    const success = sendChatMessage(text, queryId, [], undefined, 'recall');
-    
-    if (!success) {
-      addSystemMessage('Failed to send message to Butterfly. Please check your connection.');
-      $isLoading = false;
-    }
+    // Use the message handler directly
+    butterflyMessageHandler.handleMessage(text, get(fileAttachment) ? [get(fileAttachment)] : []);
     
     // Return to previous agent if needed
     if (previousAgent !== 'butterfly') {
@@ -171,6 +246,9 @@
   onMount(() => {
     // Initialize any Butterfly specific functionality
     console.log('Butterfly agent component mounted');
+    
+    // Register the message handler for butterfly
+    registerMessageHandler('butterfly', butterflyMessageHandler);
     
     // Only run welcome message in browser environment
     if (browser) {

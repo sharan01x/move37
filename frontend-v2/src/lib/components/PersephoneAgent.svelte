@@ -5,7 +5,9 @@
     addUserMessage, 
     addSystemMessage,
     messageInput,
-    isLoading
+    isLoading,
+    registerMessageHandler,
+    type MessageHandler
   } from '$lib/stores/chatStore';
   import { 
     activeAgent, 
@@ -26,6 +28,59 @@
     setActiveAgent('persephone');
   }
   
+  // Create a message handler to intercept message sending
+  const persephoneMessageHandler: MessageHandler = {
+    handleMessage: async (message: string, attachments: any[] = []) => {
+      try {
+        console.log('Persephone agent handling message:', message);
+        
+        // Generate a query ID for this message
+        const queryId = uuidv4();
+        
+        // Create a user message with recall operation type
+        const userMessage = {
+          id: uuidv4(),
+          type: 'user',
+          content: message,
+          sender: 'User',
+          agentId: 'persephone',
+          operationType: 'recall', // Explicitly use recall operation for Persephone
+          timestamp: new Date(),
+          attachments,
+          queryId
+        };
+        
+        // Add directly to the conversation history
+        addMessageToConversation('persephone', userMessage);
+          
+        // Set loading state
+        $isLoading = true;
+        
+        // Use sendChatMessage with the recall operation type parameter
+        const success = sendChatMessage(message, queryId, [], undefined, 'recall');
+        
+        if (!success) {
+          addSystemMessage('Failed to send message to Persephone. Please check your connection.');
+          $isLoading = false;
+        }
+        
+        // Return true to indicate message was handled
+        return true;
+      } catch (error) {
+        console.error('Error in Persephone message handler:', error);
+        addSystemMessage('An error occurred while processing your message.');
+        $isLoading = false;
+        return true; // Consider the message handled even if there was an error
+      }
+    }
+  };
+  
+  // Register the message handler when the agent is active
+  $: if (isActive) {
+    console.log('Registering Persephone message handler');
+    registerMessageHandler('persephone', persephoneMessageHandler);
+  }
+  
   // Send a message specifically to Persephone
   async function sendToPersephone(text: string) {
     // Store the current agent
@@ -34,34 +89,12 @@
     // Switch to Persephone temporarily
     setActiveAgent('persephone');
     
-    // Generate a query ID for this message
-    const queryId = uuidv4();
-    
-    // Create a user message directly with the same structure as in ChatInterface
-    const userMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: text,
-      sender: 'User',
-      agentId: 'persephone',
-      operationType: 'recall', // Explicitly specify recall operation
-      timestamp: new Date(),
-      attachments: [],
-      queryId
-    };
-    
-    // Add message directly to the conversation history
-    addMessageToConversation('persephone', userMessage);
-    
-    // Set loading state
-    $isLoading = true;
-    
-    // Use the updated sendChatMessage that now includes operation type parameter
-    const success = sendChatMessage(text, queryId, [], undefined, 'recall');
-    
-    if (!success) {
-      addSystemMessage('Failed to send message to Persephone. Please check your connection.');
-      $isLoading = false;
+    // Use the message handler directly
+    try {
+      await persephoneMessageHandler.handleMessage(text, []);
+    } catch (error) {
+      console.error('Error in sendToPersephone:', error);
+      addSystemMessage('Failed to process your message.');
     }
     
     // Return to previous agent if needed
@@ -152,6 +185,9 @@
   onMount(() => {
     // Initialize any Persephone specific functionality
     console.log('Persephone agent component mounted');
+    
+    // Register the message handler for Persephone
+    registerMessageHandler('persephone', persephoneMessageHandler);
     
     // Only run welcome message in browser environment
     if (browser) {

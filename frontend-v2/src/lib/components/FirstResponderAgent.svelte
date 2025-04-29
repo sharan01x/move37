@@ -5,7 +5,9 @@
     addUserMessage, 
     addSystemMessage,
     messageInput,
-    isLoading
+    isLoading,
+    registerMessageHandler,
+    type MessageHandler
   } from '$lib/stores/chatStore';
   import { 
     activeAgent, 
@@ -26,6 +28,59 @@
     setActiveAgent('first_responder');
   }
   
+  // Create a message handler to intercept message sending
+  const firstResponderMessageHandler: MessageHandler = {
+    handleMessage: async (message: string, attachments: any[] = []) => {
+      try {
+        console.log('First Responder agent handling message:', message);
+        
+        // Generate a query ID for this message
+        const queryId = uuidv4();
+        
+        // Create a user message with recall operation type
+        const userMessage = {
+          id: uuidv4(),
+          type: 'user',
+          content: message,
+          sender: 'User',
+          agentId: 'first_responder',
+          operationType: 'recall', // Explicitly use recall operation for First Responder
+          timestamp: new Date(),
+          attachments,
+          queryId
+        };
+        
+        // Add directly to the conversation history
+        addMessageToConversation('first_responder', userMessage);
+          
+        // Set loading state
+        $isLoading = true;
+        
+        // Use sendChatMessage with the recall operation type parameter
+        const success = sendChatMessage(message, queryId, [], undefined, 'recall');
+        
+        if (!success) {
+          addSystemMessage('Failed to send message to First Responder. Please check your connection.');
+          $isLoading = false;
+        }
+        
+        // Return true to indicate message was handled
+        return true;
+      } catch (error) {
+        console.error('Error in First Responder message handler:', error);
+        addSystemMessage('An error occurred while processing your message.');
+        $isLoading = false;
+        return true; // Consider the message handled even if there was an error
+      }
+    }
+  };
+  
+  // Register the message handler when the agent is active
+  $: if (isActive) {
+    console.log('Registering First Responder message handler');
+    registerMessageHandler('first_responder', firstResponderMessageHandler);
+  }
+  
   // Send a message specifically to First Responder
   async function sendToFirstResponder(text: string) {
     // Store the current agent
@@ -34,34 +89,12 @@
     // Switch to First Responder temporarily
     setActiveAgent('first_responder');
     
-    // Generate a query ID for this message
-    const queryId = uuidv4();
-    
-    // Create a user message directly with the same structure as in ChatInterface
-    const userMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: text,
-      sender: 'User',
-      agentId: 'first_responder',
-      operationType: 'recall', // Explicitly specify recall operation
-      timestamp: new Date(),
-      attachments: [],
-      queryId
-    };
-    
-    // Add message directly to the conversation history
-    addMessageToConversation('first_responder', userMessage);
-    
-    // Set loading state
-    $isLoading = true;
-    
-    // Use the updated sendChatMessage that now includes operation type parameter
-    const success = sendChatMessage(text, queryId, [], undefined, 'recall');
-    
-    if (!success) {
-      addSystemMessage('Failed to send message to First Responder. Please check your connection.');
-      $isLoading = false;
+    // Use the message handler directly
+    try {
+      await firstResponderMessageHandler.handleMessage(text, []);
+    } catch (error) {
+      console.error('Error in sendToFirstResponder:', error);
+      addSystemMessage('Failed to process your message.');
     }
     
     // Return to previous agent if needed
@@ -152,6 +185,9 @@
   onMount(() => {
     // Initialize any First Responder specific functionality
     console.log('First Responder agent component mounted');
+    
+    // Register the message handler for First Responder
+    registerMessageHandler('first_responder', firstResponderMessageHandler);
     
     // Only run welcome message in browser environment
     if (browser) {

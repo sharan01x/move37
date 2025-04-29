@@ -2,20 +2,19 @@
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { 
-    addUserMessage, 
     addSystemMessage,
     messageInput,
-    isLoading
+    isLoading,
+    registerMessageHandler,
+    type MessageHandler
   } from '$lib/stores/chatStore';
   import { 
     activeAgent, 
-    currentAgent, 
     setActiveAgent,
     addMessageToConversation,
     conversationHistory
   } from '$lib/stores/agentsStore';
   import { sendChatMessage } from '$lib/stores/websocketStore';
-  import { recordWsService } from '$lib/services/websocketService';
   import { get } from 'svelte/store';
   import { v4 as uuidv4 } from 'uuid';
   
@@ -27,6 +26,59 @@
     setActiveAgent('submissions');
   }
   
+  // Create a message handler to intercept message sending
+  const submissionsMessageHandler: MessageHandler = {
+    handleMessage: async (message: string, attachments: any[] = []) => {
+      try {
+        console.log('Submissions agent handling message:', message);
+        
+        // Generate a query ID for this message
+        const queryId = uuidv4();
+        
+        // Create a user message with record operation type
+        const userMessage = {
+          id: uuidv4(),
+          type: 'user',
+          content: message,
+          sender: 'User',
+          agentId: 'submissions',
+          operationType: 'record', // Ensure record operation
+          timestamp: new Date(),
+          attachments,
+          queryId
+        };
+        
+        // Add directly to the conversation history
+        addMessageToConversation('submissions', userMessage);
+          
+        // Set loading state
+        $isLoading = true;
+        
+        // Use sendChatMessage with the record operation type parameter
+        const success = sendChatMessage(message, queryId, [], undefined, 'record');
+        
+        if (!success) {
+          addSystemMessage('Failed to send message to Submissions. Please check your connection.');
+          $isLoading = false;
+        }
+        
+        // Return true to indicate message was handled
+        return true;
+      } catch (error) {
+        console.error('Error in submissions message handler:', error);
+        addSystemMessage('An error occurred while processing your submission.');
+        $isLoading = false;
+        return true; // Consider the message handled even if there was an error
+      }
+    }
+  };
+  
+  // Register the message handler when the agent is active
+  $: if (isActive) {
+    console.log('Registering submissions message handler');
+    registerMessageHandler('submissions', submissionsMessageHandler);
+  }
+  
   // Send a message specifically to Submissions
   async function sendToSubmissions(text: string) {
     // Store the current agent
@@ -35,34 +87,12 @@
     // Switch to Submissions temporarily
     setActiveAgent('submissions');
     
-    // Generate a query ID for this message
-    const queryId = uuidv4();
-    
-    // Create a user message directly with the same structure as in ChatInterface
-    const userMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: text,
-      sender: 'User',
-      agentId: 'submissions',
-      operationType: 'record',
-      timestamp: new Date(),
-      attachments: [],
-      queryId
-    };
-    
-    // Add message directly to the conversation history
-    addMessageToConversation('submissions', userMessage);
-    
-    // Set loading state
-    $isLoading = true;
-    
-    // Use sendChatMessage with the operation type parameter
-    const success = sendChatMessage(text, queryId, [], undefined, 'record');
-    
-    if (!success) {
-      addSystemMessage('Failed to send message to Submissions. Please check your connection.');
-      $isLoading = false;
+    // Use the message handler directly
+    try {
+      await submissionsMessageHandler.handleMessage(text, []);
+    } catch (error) {
+      console.error('Error in sendToSubmissions:', error);
+      addSystemMessage('Failed to process your submission.');
     }
     
     // Return to previous agent if needed
@@ -153,6 +183,9 @@
   onMount(() => {
     // Initialize any Submissions specific functionality
     console.log('Submissions agent component mounted');
+    
+    // Register the message handler for submissions
+    registerMessageHandler('submissions', submissionsMessageHandler);
     
     // Only run welcome message in browser environment
     if (browser) {

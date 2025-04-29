@@ -5,7 +5,9 @@
     addUserMessage, 
     addSystemMessage,
     messageInput,
-    isLoading
+    isLoading,
+    registerMessageHandler,
+    type MessageHandler
   } from '$lib/stores/chatStore';
   import { 
     activeAgent, 
@@ -26,6 +28,59 @@
     setActiveAgent('number_ninja');
   }
   
+  // Create a message handler to intercept message sending
+  const numberNinjaMessageHandler: MessageHandler = {
+    handleMessage: async (message: string, attachments: any[] = []) => {
+      try {
+        console.log('Number Ninja agent handling message:', message);
+        
+        // Generate a query ID for this message
+        const queryId = uuidv4();
+        
+        // Create a user message with recall operation type
+        const userMessage = {
+          id: uuidv4(),
+          type: 'user',
+          content: message,
+          sender: 'User',
+          agentId: 'number_ninja',
+          operationType: 'recall', // Explicitly use recall operation for Number Ninja
+          timestamp: new Date(),
+          attachments,
+          queryId
+        };
+        
+        // Add directly to the conversation history
+        addMessageToConversation('number_ninja', userMessage);
+          
+        // Set loading state
+        $isLoading = true;
+        
+        // Use sendChatMessage with the recall operation type parameter
+        const success = sendChatMessage(message, queryId, [], undefined, 'recall');
+        
+        if (!success) {
+          addSystemMessage('Failed to send message to Number Ninja. Please check your connection.');
+          $isLoading = false;
+        }
+        
+        // Return true to indicate message was handled
+        return true;
+      } catch (error) {
+        console.error('Error in Number Ninja message handler:', error);
+        addSystemMessage('An error occurred while processing your message.');
+        $isLoading = false;
+        return true; // Consider the message handled even if there was an error
+      }
+    }
+  };
+  
+  // Register the message handler when the agent is active
+  $: if (isActive) {
+    console.log('Registering Number Ninja message handler');
+    registerMessageHandler('number_ninja', numberNinjaMessageHandler);
+  }
+  
   // Send a message specifically to Number Ninja
   async function sendToNumberNinja(text: string) {
     // Store the current agent
@@ -34,34 +89,12 @@
     // Switch to Number Ninja temporarily
     setActiveAgent('number_ninja');
     
-    // Generate a query ID for this message
-    const queryId = uuidv4();
-    
-    // Create a user message directly with the same structure as in ChatInterface
-    const userMessage = {
-      id: uuidv4(),
-      type: 'user',
-      content: text,
-      sender: 'User',
-      agentId: 'number_ninja',
-      operationType: 'recall', // Explicitly specify recall operation
-      timestamp: new Date(),
-      attachments: [],
-      queryId
-    };
-    
-    // Add message directly to the conversation history
-    addMessageToConversation('number_ninja', userMessage);
-    
-    // Set loading state
-    $isLoading = true;
-    
-    // Use the updated sendChatMessage that now includes operation type parameter
-    const success = sendChatMessage(text, queryId, [], undefined, 'recall');
-    
-    if (!success) {
-      addSystemMessage('Failed to send message to Number Ninja. Please check your connection.');
-      $isLoading = false;
+    // Use the message handler directly
+    try {
+      await numberNinjaMessageHandler.handleMessage(text, []);
+    } catch (error) {
+      console.error('Error in sendToNumberNinja:', error);
+      addSystemMessage('Failed to process your message.');
     }
     
     // Return to previous agent if needed
@@ -152,6 +185,9 @@
   onMount(() => {
     // Initialize any Number Ninja specific functionality
     console.log('Number Ninja agent component mounted');
+    
+    // Register the message handler for Number Ninja
+    registerMessageHandler('number_ninja', numberNinjaMessageHandler);
     
     // Only run welcome message in browser environment
     if (browser) {

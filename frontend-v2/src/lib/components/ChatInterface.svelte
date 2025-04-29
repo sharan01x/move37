@@ -10,7 +10,10 @@
     clearFileAttachment,
     conversations,
     activeAgentId,
-    statusMessage
+    statusMessage,
+    messageHandlers,
+    getMessageHandler,
+    type MessageHandler
   } from '$lib/stores/chatStore';
   import { 
     activeAgent, 
@@ -140,18 +143,40 @@
       file: $fileAttachment.file
     }] : [];
     
+    // Check if a custom message handler exists for the current agent
+    const handler = getMessageHandler($activeAgent);
+    if (handler) {
+      console.log(`Using custom message handler for agent: ${$activeAgent}`);
+      try {
+        const handled = await handler.handleMessage(message, attachments);
+        if (handled) {
+          // If the message was handled by the custom handler, clear file attachment and return
+          if ($fileAttachment) {
+            console.log('Clearing file attachment after sending');
+            clearFileAttachment();
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Error in custom message handler:', error);
+        addSystemMessage('An error occurred while processing your message.');
+        $isLoading = false;
+        return;
+      }
+    }
+    
     // Generate a query ID for this message
     const queryId = uuidv4();
     
-    // Create a user message directly - default to 'recall' operation
-    // Individual agent components will override this when appropriate
+    // Default behavior - Create a user message directly with default 'recall' operation
+    // This runs if no custom handler was found or if the handler didn't handle the message
     const userMessage = {
       id: uuidv4(),
       type: 'user',
       content: message,
       sender: 'User',
       agentId: $activeAgent,
-      operationType: 'recall' as 'recall' | 'record', // Default to recall, agents can override
+      operationType: 'recall' as 'recall' | 'record', // Default to recall
       timestamp: new Date(),
       attachments,
       queryId
@@ -163,77 +188,14 @@
     // Set loading state
     $isLoading = true;
     
-    // Special handling for Butterfly agent with file attachments
-    if ($activeAgent === 'butterfly' && $fileAttachment && $fileAttachment.file) {
-      console.log('Butterfly agent with file attachment detected, handling file upload');
-      
-      // Removed status message for file upload
-      const fileType = $fileAttachment.type.startsWith('image/') ? 'image' : 'video';
-      
-      try {
-        // Upload the file using fetch
-        // Must use the backend API server URL, not the frontend server origin
-        const apiBaseUrl = 'http://localhost:8000';
-        const userId = localStorage.getItem('userId') || 'user123';
-        
-        console.log(`Uploading file to ${apiBaseUrl}/social_media/upload`);
-        
-        const formData = new FormData();
-        formData.append('file', $fileAttachment.file);
-        formData.append('user_id', userId);
-        
-        const response = await fetch(`${apiBaseUrl}/social_media/upload`, {
-          method: 'POST',
-          body: formData
-        });
-        
-        console.log('Response status:', response.status);
-        const result = await response.json();
-        console.log('Social media upload response:', result);
-        
-        if (!result.success) {
-          console.error('File upload failed:', result.message);
-          // Removed status message for file upload failure
-          $isLoading = false;
-          clearFileAttachment();
-          return;
-        }
-        
-        if (!result.file_ids || result.file_ids.length === 0) {
-          console.error('File upload returned no file path');
-          // Removed status message for no file path
-          $isLoading = false;
-          clearFileAttachment();
-          return;
-        }
-        
-        const filePath = result.file_ids[0];
-        console.log('File uploaded successfully, path:', filePath);
-        
-        // Removed success status message
-        
-        // Now send the message with the attachment path
-        const success = sendChatMessage(message, queryId, [], filePath, userMessage.operationType);
-        
-        if (!success) {
-          statusMessage.set('Failed to send message. Please check your connection.');
-          console.log('Set error status message: Failed to send message');
-          $isLoading = false;
-        }
-      } catch (error: any) {
-        console.error('Error uploading file:', error);
-        // Removed error status message for file upload
-        $isLoading = false;
-      }
-    } else {
-      // Standard message sending for other agents
-      const success = sendChatMessage(message, queryId, [], undefined, userMessage.operationType);
-      
-      if (!success) {
-        statusMessage.set('Failed to send message. Please check your connection.');
-        console.log('Set error status message: Failed to send message');
-        $isLoading = false;
-      }
+    // Standard message sending for all agents - no special cases needed anymore
+    // since all agent-specific logic is now in their respective message handlers
+    const success = sendChatMessage(message, queryId, [], undefined, userMessage.operationType);
+    
+    if (!success) {
+      statusMessage.set('Failed to send message. Please check your connection.');
+      console.log('Set error status message: Failed to send message');
+      $isLoading = false;
     }
     
     // Clear file attachment after sending

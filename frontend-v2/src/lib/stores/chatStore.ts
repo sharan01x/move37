@@ -66,6 +66,31 @@ export const conversations = writable<{ [agentId: string]: Message[] }>({});
 // Store for user facts
 export const userFacts = writable<UserFact[]>([]);
 
+// Interface for message handlers
+export interface MessageHandler {
+  handleMessage: (message: string, attachments: any[]) => Promise<boolean> | boolean;
+}
+
+// Store for agent-specific message handlers - key is agent ID
+export const messageHandlers = writable<Record<string, MessageHandler>>({});
+
+// Register a message handler for a specific agent
+export function registerMessageHandler(agentId: string, handler: MessageHandler): void {
+  messageHandlers.update(handlers => ({
+    ...handlers,
+    [agentId]: handler
+  }));
+}
+
+// Get a message handler for a specific agent
+export function getMessageHandler(agentId: string): MessageHandler | undefined {
+  let result: MessageHandler | undefined;
+  messageHandlers.subscribe(handlers => {
+    result = handlers[agentId];
+  })();
+  return result;
+}
+
 // Function to generate a unique query ID
 export function generateQueryId(): string {
     return uuidv4();
