@@ -11,6 +11,10 @@ import { activeAgent, addMessageToConversation, conversationHistory } from '$lib
 import { updateUserFacts } from '$lib/stores/userFactsStore';
 import { MessageType } from '$lib/services/websocketService';
 
+// Status message queue system
+let statusMessageQueue: string[] = [];
+let processingQueue = false;
+
 /**
  * Initialize WebSocket handlers for various message types
  */
@@ -129,19 +133,57 @@ function handleStatusUpdate(data: any): void {
   
   console.log('Handling status update:', data.message);
   
-  // Update status message
-  statusMessage.set(data.message);
+  // Add the message to the queue
+  statusMessageQueue.push(data.message);
   
-  // If this is a final status, clear it after a short delay
+  // If we're not already processing the queue, start processing
+  if (!processingQueue) {
+    processStatusMessageQueue();
+  }
+  
+  // If this is a final status, we'll clear after processing
   if (data.is_final) {
-    setTimeout(() => {
-      statusMessage.set('');
-      isLoading.set(false); // Also update loading state when completed
-    }, 2000);
+    // Mark this as the final message by adding to queue
+    statusMessageQueue.push('__FINAL__');
   } else {
-    // If not final, ensure loading is set to true to show the loading indicator
+    // Ensure loading is set to true to show the loading indicator
     isLoading.set(true);
   }
+}
+
+/**
+ * Process messages in the queue with minimum display time
+ */
+function processStatusMessageQueue(): void {
+  if (statusMessageQueue.length === 0) {
+    processingQueue = false;
+    return;
+  }
+  
+  processingQueue = true;
+  const message = statusMessageQueue.shift();
+  
+  // Check if this is our marker for a final message
+  if (message === '__FINAL__') {
+    // Clear after a delay and stop loading
+    setTimeout(() => {
+      statusMessage.set('');
+      isLoading.set(false);
+      // Continue processing the queue
+      processStatusMessageQueue();
+    }, 2000);
+    return;
+  }
+  
+  // Set the current status message - ensure it's a string
+  if (message !== undefined) {
+    statusMessage.set(message);
+  }
+  
+  // Wait at least 250ms before processing the next message
+  setTimeout(() => {
+    processStatusMessageQueue();
+  }, 250);
 }
 
 /**
@@ -233,7 +275,13 @@ function handleUploadProgress(data: any): void {
   if (!data || typeof data.progress !== 'number') return;
   
   // Update status message with progress information
-  statusMessage.set(`Uploading: ${Math.round(data.progress)}%`);
+  // Add to the queue rather than setting directly
+  statusMessageQueue.push(`Uploading: ${Math.round(data.progress)}%`);
+  
+  // If we're not already processing the queue, start processing
+  if (!processingQueue) {
+    processStatusMessageQueue();
+  }
 }
 
 /**

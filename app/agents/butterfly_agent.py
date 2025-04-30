@@ -173,11 +173,21 @@ class ButterflyAgent(BaseAgent):
             if not result["success"]:
                 result_summary += f"  - {result['message']}\n"
                 
+        # Convert the markdown-style text to HTML for proper display in chat
+        html_result = "<p>The following were the results of the task:</p>"
+        html_result += "<ul>"
+        for result in results:
+            status = "✅ Success" if result["success"] else "❌ Failed"
+            html_result += f"<li><strong>{result['channel']}/{result['account']}:</strong> {status}</li>"
+            if not result["success"]:
+                html_result += f"<ul><li style='color:#E53E3E'>{result['message']}</li></ul>"
+        html_result += "</ul>"
+                
         return {
             "agent_name": self.name,
             "overall_success": overall_success,
             "results": results,
-            "answer": result_summary,
+            "answer": html_result,
             "json_data": {
                 "content": content,
                 "posting_results": [
@@ -394,11 +404,16 @@ class ButterflyAgent(BaseAgent):
         
         # If result is a string message
         else:
+            # Format string message as HTML
+            formatted_result = str(result).strip() if result else "No response generated."
+            # Convert the string to HTML paragraph for better display
+            html_result = f"<p>{formatted_result}</p>"
+            
             return {
                 "agent_name": self.name,
-                "answer": str(result).strip() if result else "No response generated.",
+                "answer": html_result,
                 "json_data": {
-                    "message": str(result).strip() if result else "No response generated.",
+                    "message": formatted_result,
                     "success": False,
                     "error": True if result and "error" in str(result).lower() else False
                 }
