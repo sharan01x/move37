@@ -16,6 +16,7 @@ import threading
 import time
 
 from app.api.main import app
+from app.core.config import API_HOST, API_PORT
 
 def signal_handler(sig, frame):
     """Handle termination signals by forcibly exiting."""
@@ -41,7 +42,7 @@ if __name__ == "__main__":
         pass
     
     try:
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+        uvicorn.run(app, host=API_HOST, port=API_PORT)
     except Exception as e:
         print(f"Error running server: {e}")
         sys.exit(1)

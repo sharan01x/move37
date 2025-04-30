@@ -23,7 +23,8 @@
   import { v4 as uuidv4 } from 'uuid';
   
   // API endpoint - needed for backend API calls
-  const apiBaseUrl = browser ? 'http://localhost:8000' : 'http://localhost:8000';
+  const apiPort = browser ? (import.meta.env.VITE_API_PORT || window.location.port || '8000') : '8000';
+  const apiBaseUrl = browser ? `${window.location.protocol}//${window.location.hostname}:${apiPort}` : 'http://localhost:8000';
   
   // Check if this is the active agent
   $: isActive = $activeAgent === 'butterfly';

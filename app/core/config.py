@@ -40,7 +40,7 @@ os.makedirs(CONVERSATIONS_VECTOR_DB_PATH, exist_ok=True)
 
 # API settings
 API_HOST = "0.0.0.0"
-API_PORT = 8000
+API_PORT = int(os.environ.get("API_PORT", 8000))
 
 # Agent-specific LLM settings
 # First Responder Agent

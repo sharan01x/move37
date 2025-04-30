@@ -260,7 +260,10 @@ export class WebSocketService {
 }
 
 // Create WebSocket services for READ and WRITE operations
-let wsBaseUrl = browser ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8000` : 'ws://localhost:8000';
+const apiPort = import.meta.env?.VITE_API_PORT || '8000';
+let wsBaseUrl = browser 
+  ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:${import.meta.env.VITE_API_PORT || window.location.port || '8000'}` 
+  : `ws://localhost:${apiPort}`;
 
 // For production, use relative URL
 if (!import.meta.env.DEV && browser) {
