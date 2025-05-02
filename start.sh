@@ -29,14 +29,11 @@ fi
 if [ ! -d "frontend" ]; then
   echo -e "${YELLOW}Warning: 'frontend' directory not found${NC}"
 else
-  # Check if frontend built version exists, if not, build it
-  if [ ! -d "frontend/build" ] && [ ! -d "frontend/dist" ]; then
-    echo -e "${BLUE}Building frontend...${NC}"
-    cd frontend
-    npm install
-    npm run build
-    cd ..
-  fi
+  # Force rebuilding of frontend to apply any changes
+  echo -e "${BLUE}Building frontend...${NC}"
+  cd frontend
+  npm install
+  cd ..
 fi
 
 # Start the backend server
@@ -84,6 +81,7 @@ if [ -n "$FRONTEND_PID" ]; then
   echo -e "http://<YOUR-IP-ADDRESS>:5173 (frontend)"
 fi
 
+echo -e "\n${BLUE}Note: Your frontend is now configured to connect to the backend at port 8000${NC}"
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 
 # Wait for Ctrl+C

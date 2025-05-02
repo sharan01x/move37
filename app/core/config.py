@@ -73,7 +73,7 @@ USER_FACT_EXTRACTOR_LLM_MODEL = "qwen2.5:latest"
 
 # Persephone Agent
 PERSEPHONE_LLM_PROVIDER = "ollama"
-PERSEPHONE_LLM_MODEL = "qwen2.5:latest"
+PERSEPHONE_LLM_MODEL = "qwen3:latest"
 
 # Librarian Agent
 LIBRARIAN_LLM_PROVIDER = "ollama"

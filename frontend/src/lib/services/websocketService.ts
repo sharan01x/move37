@@ -262,13 +262,15 @@ export class WebSocketService {
 // Create WebSocket services for READ and WRITE operations
 const apiPort = import.meta.env?.VITE_API_PORT || '8000';
 let wsBaseUrl = browser 
-  ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:${import.meta.env.VITE_API_PORT || window.location.port || '8000'}` 
+  ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:${apiPort}` 
   : `ws://localhost:${apiPort}`;
 
-// For production, use relative URL
-if (!import.meta.env.DEV && browser) {
+// For production, use relative URL only if not in development mode and backend and frontend are on same port
+if (!import.meta.env.DEV && browser && window.location.port === apiPort) {
   wsBaseUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 }
+
+console.log('WebSocket connecting to:', wsBaseUrl);
 
 export const recallWsService = new WebSocketService(`${wsBaseUrl}/ws/recall`, { debug: import.meta.env.DEV });
 export const recordWsService = new WebSocketService(`${wsBaseUrl}/ws/record`, { debug: import.meta.env.DEV });

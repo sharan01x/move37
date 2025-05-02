@@ -33,10 +33,24 @@
   import SubmissionsAgent from './SubmissionsAgent.svelte';
   import FilesAgent from './FilesAgent.svelte';
   import { v4 as uuidv4 } from 'uuid';
+  // @ts-ignore
+  import MarkdownIt from 'markdown-it';
   
   let messageInputElement: HTMLTextAreaElement;
   let messagesContainer: HTMLDivElement;
   let fileInput: HTMLInputElement;
+  let md: MarkdownIt;
+  
+  // Initialize markdown parser
+  if (browser) {
+    md = new MarkdownIt({
+      html: false,        // Disable HTML tags in source
+      xhtmlOut: false,    // Use '/' to close single tags (<br />)
+      breaks: true,       // Convert '\n' in paragraphs into <br>
+      linkify: true,      // Autoconvert URL-like text to links
+      typographer: true,  // Enable smart quotes and other replacements
+    });
+  }
   
   // Format agent names for display only, without changing the original agentId
   function getAgentDisplayName(agentId: string): string {
@@ -58,6 +72,22 @@
       default:
         return agentId.charAt(0).toUpperCase() + agentId.slice(1);
     }
+  }
+  
+  // Process message content with markdown-it
+  function formatMessageContent(content: string): string {
+    if (!content || !browser) return content || '';
+    
+    // Check if content is already HTML
+    const containsHtml = /<\/?[a-z][\s\S]*>/i.test(content);
+    
+    // If it's already HTML, return as is
+    if (containsHtml) {
+      return content;
+    }
+    
+    // Otherwise, process markdown to HTML
+    return md.render(content);
   }
   
   // For autoresizing the textarea
@@ -285,11 +315,11 @@
       {#each $currentConversation as message (message.id)}
         {#if message.type === 'system'}
           <div class="message system">
-            <div class="content">{@html message.content}</div>
+            <div class="content">{@html formatMessageContent(message.content)}</div>
             </div>
         {:else if message.type === 'user'}
           <div class="message user">
-            <div class="content">{@html message.content}</div>
+            <div class="content">{@html formatMessageContent(message.content)}</div>
           </div>
         {:else if message.type === 'agent'}
           <div class="message agent" style={message.score ? `opacity: ${Math.max(0.4, message.score / 100)}` : ''}>
@@ -305,7 +335,7 @@
                 <span class="score-dot" class:blinking={!message.score} class:score-100={message.score >= 90} class:score-0={message.score === 0} class:score-other={message.score > 0 && message.score < 90}></span>
               </div>
             {/if}
-            <div class="content">{@html message.content}</div>
+            <div class="content">{@html formatMessageContent(message.content)}</div>
           </div>
         {/if}
       {/each}
@@ -337,7 +367,7 @@
     <div class="input-container">
       <StatusMessage />
       
-      <div class="chat-input-container">
+      <div class="chat-input-container" class:hidden={$activeAgent === 'files'}>
         <button class="icon-button attach-button" on:click={handleFileButtonClick}>
           <i class="fas fa-paperclip"></i>
         </button>
@@ -556,6 +586,10 @@
     min-height: 60px;
   }
 
+  .hidden {
+    display: none !important;
+  }
+
   textarea {
     flex-grow: 1;
     resize: none;
@@ -716,5 +750,137 @@
   
   .theme-toggle-button i {
     font-size: 1.2rem;
+  }
+  
+  /* Code block styling */
+  :global(pre.code-block) {
+    background-color: var(--code-bg, #efefef);
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    border: 1px solid var(--border-color, #e0e0e0);
+  }
+  
+  :global(.dark pre.code-block) {
+    background-color: #2d2d2d;
+    border-color: #444;
+  }
+  
+  :global(.code-block code) {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    white-space: pre;
+  }
+
+  /* Markdown content styling */
+  :global(.content) {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  
+  :global(.content p) {
+    margin: 0.5rem 0;
+  }
+  
+  :global(.content ul, .content ol) {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+  
+  :global(.content h1, .content h2, .content h3, .content h4, .content h5, .content h6) {
+    margin: 0.75rem 0 0.5rem 0;
+  }
+  
+  :global(.content a) {
+    color: var(--link-color, #0066cc);
+    text-decoration: none;
+  }
+  
+  :global(.content a:hover) {
+    text-decoration: underline;
+  }
+  
+  :global(.content strong) {
+    font-weight: 600;
+  }
+  
+  :global(.content em) {
+    font-style: italic;
+  }
+  
+  :global(.content code:not(pre code)) {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    background-color: var(--inline-code-bg, rgba(0, 0, 0, 0.05));
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  
+  :global(.dark .content code:not(pre code)) {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  :global(.content pre) {
+    background-color: var(--code-bg, #efefef);
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    border: 1px solid var(--border-color, #e0e0e0);
+  }
+  
+  :global(.dark .content pre) {
+    background-color: #2d2d2d;
+    border-color: #444;
+  }
+  
+  :global(.content pre code) {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    white-space: pre;
+    padding: 0;
+    background: none;
+  }
+  
+  :global(.content blockquote) {
+    margin: 0.5rem 0;
+    padding-left: 1rem;
+    border-left: 3px solid var(--border-color, #e0e0e0);
+    color: var(--quote-color, #666);
+  }
+  
+  :global(.dark .content blockquote) {
+    border-left-color: #555;
+    color: #aaa;
+  }
+  
+  /* Add styles for tables if needed */
+  :global(.content table) {
+    border-collapse: collapse;
+    margin: 0.5rem 0;
+    width: 100%;
+  }
+  
+  :global(.content th, .content td) {
+    border: 1px solid var(--border-color, #e0e0e0);
+    padding: 0.5rem;
+  }
+  
+  :global(.dark .content th, .dark .content td) {
+    border-color: #444;
+  }
+  
+  :global(.content th) {
+    background-color: var(--table-header-bg, #f5f5f5);
+    font-weight: 600;
+  }
+  
+  :global(.dark .content th) {
+    background-color: #333;
   }
 </style> 
