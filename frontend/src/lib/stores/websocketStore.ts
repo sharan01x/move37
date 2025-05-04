@@ -134,7 +134,7 @@ export function sendChatMessage(
   const currentAgentId = get(activeAgent);
   
   // Get user ID from localStorage or use a default
-  const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+  const userId = browser ? localStorage.getItem('userId') || 'default' : 'default';
   
   // Use provided queryId or generate a new one
   const messageQueryId = queryId || `q_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

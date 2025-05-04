@@ -249,7 +249,7 @@
     if (!browser) return;
     
     // Get userId from localStorage
-    const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+    const userId = browser ? localStorage.getItem('userId') || 'default' : 'default';
     
     // Ensure recall WebSocket is connected
     if (!recallWsConnection || recallWsConnection.readyState !== WebSocket.OPEN) {
@@ -288,7 +288,7 @@
     if (!input.files || input.files.length === 0) return;
     
     const filesArray = Array.from(input.files);
-    const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+    const userId = browser ? localStorage.getItem('userId') || 'default' : 'default';
     
     try {
       addSystemMessage(`Uploading ${filesArray.length} file(s)...`);
@@ -345,7 +345,7 @@
   // Delete a file via WebSocket
   function deleteFile(fileId: string) {
     // Remove the confirmation dialog
-    const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+    const userId = browser ? localStorage.getItem('userId') || 'default' : 'default';
     
     // Ensure record WebSocket is connected
     if (!recordWsConnection || recordWsConnection.readyState !== WebSocket.OPEN) {
@@ -430,7 +430,7 @@
   async function saveTextContent() {
     if (!modalFile) return;
     
-    const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+    const userId = browser ? localStorage.getItem('userId') || 'default' : 'default';
     
     // Ensure record WebSocket is connected
     if (!recordWsConnection || recordWsConnection.readyState !== WebSocket.OPEN) {

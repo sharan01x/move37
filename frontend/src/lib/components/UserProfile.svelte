@@ -17,7 +17,7 @@
   export let isOpen = false;
   
   // User ID - in a real app, this would come from an auth store
-  let userId = 'user123';
+  let userId = 'default';
   let isEditing = false;
   let tempUserId = userId;
   

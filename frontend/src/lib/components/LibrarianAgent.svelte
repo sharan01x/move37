@@ -69,7 +69,7 @@
           
           try {
             // Upload the file using fetch
-            const userId = browser ? localStorage.getItem('userId') || 'user123' : 'user123';
+            const userId = browser ? localStorage.getItem('userId') || 'default' : 'default';
             
             console.log(`Uploading file to ${apiBaseUrl}/files/upload`);
             

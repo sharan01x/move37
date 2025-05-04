@@ -2,44 +2,69 @@
 
 We are at the beginning of a new goal-based paradigm of computing where you can simply describe what you need done without having to think about the steps you need to perform in between to achieve that task. You can describe the "what", because computers are smart enough to figure out the "how" in order to perform the task. This project is an attempt to make that reality come true.
 
-There are numerous reasons for why this application is architected the way it is, ensuring that the data resides only on the user's computer within the user's control. But that will be covered separately. 
+There are numerous reasons for why this application is architected the way it is, ensuring that the data resides only on the user's computer within the user's control. Read more about that [here](https://redd.in/blog/the-age-of-goal-based-computing/)
 
 This project is entirely free for personal use but is covered by a license to ensure fair commercial usage. Please review the license file (license.md) for further details.
 
 
-## Installation
+## Quick Installation
 
-1. Clone the repository:
+Prerequisites -- you need Python 3.11 and Ollama installed on your local machine with Qwen2.5, mxbai-embed-large and phi4-mini installed. 
+
+1. Clone the repository and then go into that directory:
 ```bash
 git clone https://github.com/sharan01x/move37.git
 cd move37
 ```
 
-2. Check configuration file for the right paths or to change the AI models that you prefer to use. Leave this as is if you want to use the default settings, in which case, ,make sure you already have Ollama installed and running Qwen2.5, mxbai-embed-large and phi4-mini. 
-
-3. Create a virtual environment and install dependencies:
+2. Make the starting shell script executable:
 ```bash
-python -m venv venv
+chmod +x start.sh
+```
+
+3. Now launch the application using:
+```bash
+./start.sh
+```
+
+When it runs for the first time, it should run all the installation steps necessary to get your application working. If this doesn't result in a clean start up of the application post that, use the following steps to install it manually first and then use the start.sh script to launch your application post that.
+
+
+## Manual Install (When Simple Install Doesn't Work)
+
+1. Make sure you have Python 3.11 installed on your system. If you don't have python, go get it from their [website](https://www.python.org/downloads/release/python-31112/)
+
+2. Install Ollama and Qwen2.5, mxbai-embed-large and phi4-mini AI models. Go to their website to [begin](https://ollama.com).
+
+3. Clone the Move37 repository and then go into that directory:
+```bash
+git clone https://github.com/sharan01x/move37.git
+cd move37
+```
+
+4. Create a virtual environment and install dependencies:
+```bash
+python3.11 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
-You will need to install some depencies manually, and they are detailed in the requirements.txt file.
+You will need to install some depencies manually post that using the following command in the terminal:
 
-
-4. Run the application:
 ```bash
-python main.py --host 0.0.0.0
+python3.11 -m spacy download en_core_web_sm
 ```
+If you run into issues, look at the instructions within requirements.txt for alternative ways to fix the install process.
 
-5. Access the frontend:
+5. Setup the launch script for easy launches in the future:
 ```bash
-cd frontend
-python -m http.server 3000
+chmod +x start.sh
 ```
 
 6. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
-a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/resources.html
-b. A file with the social media account details at data/social_media/accounts.json. You can have one or more accounts use the following structure for the various supported platforms:
+
+a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/resources.html.
+
+b. A file with the social media account details at data/social_media/accounts.json. Use the following structure for the various supported platforms:
 
 ```
 [
@@ -127,11 +152,11 @@ b. A file with the social media account details at data/social_media/accounts.js
 ]
 ```
 
-Then open your browser to http://localhost:3000
-
-## Documentation
-
-More detailed documentation is coming soon.
+7. Launch the application in the future simply by using the following command:
+```bash
+./start.sh
+```
+The first time this runs, some frotnend dependencies will be installed, but all the future runs will be faster and immediately run the two servers to get your application to run.
 
 
 ## Features
