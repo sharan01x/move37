@@ -2,9 +2,60 @@
 
 We are at the beginning of a new goal-based paradigm of computing where you can simply describe what you need done without having to think about the steps you need to perform in between to achieve that task. You can describe the "what", because computers are smart enough to figure out the "how" in order to perform the task. This project is an attempt to make that reality come true.
 
+To begin with, this project offers some of the popular features that other commercial products are offering including taking down meeting notes as well as performing some tasks on the computer, but all run locally, with user privacy in mind.
+
 There are numerous reasons for why this application is architected the way it is, ensuring that the data resides only on the user's computer within the user's control. Read more about that [here](https://redd.in/blog/the-age-of-goal-based-computing/)
 
 This project is entirely free for personal use but is covered by a license to ensure fair commercial usage. Please review the license file (license.md) for further details.
+
+## Features
+
+### 1. Get quick answers from a general purpose AI model
+
+![First Reponder](images/01-FirstResponder.png)
+
+### 2. Calculate with accuracy, better than LLMs can
+
+![Number Ninja](images/02-NumberNinja.png)
+
+### 3. Tap into personal knowledge and get answers tailored to you
+
+![Persephone](images/03-Persephone.png)
+
+### 4. Upload your own files and ask questions of them
+
+![Librarian](images/04-Librarian.png)
+
+### 5. Make posting to all your social media accounts a breeze
+
+![Butterfly](images/05-Butterfly.png)
+
+### 6. Record anything, including meeting notes, document information or anything else and recall them when you need
+
+![Submissions](images/06-Submissions.png)
+
+### 7. View all the things recorded about you and delete anything, any time
+
+![User Profile](images/07-UserProfile.png)
+
+### 8. Upload your own files so you can ask any question about them
+
+![Files](images/08-Files.png)
+
+### 9. The quickest way to ask questions and get the answer from multiple sources or to get multiple perspectives
+
+![Ask Around](images/09-AskAround.png)
+
+### 10. Dark mode, of course
+
+![Dark Mode](images/10-DarkMode.png)
+
+### 11. Mobile compatible
+
+![Mobile View](images/11-MobileView.png)
+
+---
+
 
 
 ## Quick Installation
@@ -29,8 +80,9 @@ chmod +x start.sh
 
 When it runs for the first time, it should run all the installation steps necessary to get your application working. If this doesn't result in a clean start up of the application post that, use the following steps to install it manually first and then use the start.sh script to launch your application post that.
 
+---
 
-## Manual Install (When Simple Install Doesn't Work)
+## Manual Install (If Quick Install Doesn't Work)
 
 1. Make sure you have Python 3.11 installed on your system. If you don't have python, go get it from their [website](https://www.python.org/downloads/release/python-31112/)
 
@@ -157,12 +209,3 @@ b. A file with the social media account details at data/social_media/accounts.js
 ./start.sh
 ```
 The first time this runs, some frotnend dependencies will be installed, but all the future runs will be faster and immediately run the two servers to get your application to run.
-
-
-## Features
-
-- **Multi-agent support**: Users can interact with different specialized agents
-- **Real-time communication**: WebSocket ensures instant message delivery and responses
-- **Offline resilience**: Reconnection handling with exponential backoff
-- **File attachments**: Support for sending files through the chat interface
-- **User identity management**: Persistent user ID stored in localStorage
