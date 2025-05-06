@@ -36,7 +36,9 @@
 	},
 	"dependencies": {
 		"@floating-ui/dom": "^1.6.13",
+		"katex": "^0.16.22",
 		"markdown-it": "^14.1.0",
+		"markdown-it-katex": "^2.0.3",
 		"uuid": "^11.1.0"
 	}
 }

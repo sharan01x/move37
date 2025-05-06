@@ -83,6 +83,10 @@ LIBRARIAN_LLM_MODEL = "gemma3:4b"
 BUTTERFLY_LLM_PROVIDER = "ollama"
 BUTTERFLY_LLM_MODEL = "phi4-mini:latest"
 
+# Recall Agent (MCP-based)
+RECALL_LLM_PROVIDER = "ollama"
+RECALL_LLM_MODEL = "qwen3:latest"  # Using the most capable model for tool use
+
 # For OpenAI (if used)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 

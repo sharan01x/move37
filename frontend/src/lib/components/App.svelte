@@ -20,11 +20,6 @@
     initializeWebSocketHandlers();
   });
   
-  // Switch between recall and record modes
-  function switchMode(mode: 'recall' | 'record') {
-    currentMode = mode;
-  }
-  
   // Toggle dark mode
   function toggleDarkMode() {
     darkMode.toggleTheme();

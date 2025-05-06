@@ -35,13 +35,16 @@
   import { v4 as uuidv4 } from 'uuid';
   // @ts-ignore
   import MarkdownIt from 'markdown-it';
+  // Import KaTeX directly - remove markdownItKatex
+  import katex from 'katex';
+  import 'katex/dist/katex.min.css';
   
   let messageInputElement: HTMLTextAreaElement;
   let messagesContainer: HTMLDivElement;
   let fileInput: HTMLInputElement;
   let md: MarkdownIt;
   
-  // Initialize markdown parser
+  // Initialize markdown parser without KaTeX (we'll handle it separately)
   if (browser) {
     md = new MarkdownIt({
       html: false,        // Disable HTML tags in source
@@ -74,20 +77,64 @@
     }
   }
   
-  // Process message content with markdown-it
+  // Custom function to process LaTeX in the content
+  function processLatex(content: string): string {
+    if (!content || !browser) return content || '';
+    
+    try {
+      // Use a more robust regex pattern for handling LaTeX delimiters
+      
+      // First, handle display LaTeX: $$...$$
+      content = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, latex) => {
+        try {
+          return katex.renderToString(latex.trim(), {
+            throwOnError: false,
+            displayMode: true
+          });
+        } catch (e) {
+          console.error('KaTeX display rendering error:', e);
+          return match; // Return original on error
+        }
+      });
+      
+      // Then handle inline LaTeX: $...$ (but not $$...$$ which was already processed)
+      // This regex ensures we don't capture $$ (which would be the start/end of a display math block)
+      content = content.replace(/(?<!\$)\$((?!\$)[\s\S]+?)\$(?!\$)/g, (match, latex) => {
+        try {
+          return katex.renderToString(latex.trim(), {
+            throwOnError: false,
+            displayMode: false
+          });
+        } catch (e) {
+          console.error('KaTeX inline rendering error:', e, 'in:', latex);
+          return match; // Return original on error
+        }
+      });
+      
+      return content;
+    } catch (e) {
+      console.error('Error in LaTeX processing:', e);
+      return content;
+    }
+  }
+  
+  // Process message content with markdown-it and our custom LaTeX processor
   function formatMessageContent(content: string): string {
     if (!content || !browser) return content || '';
     
     // Check if content is already HTML
     const containsHtml = /<\/?[a-z][\s\S]*>/i.test(content);
     
-    // If it's already HTML, return as is
+    // If it's already HTML, just process LaTeX
     if (containsHtml) {
-      return content;
+      return processLatex(content);
     }
     
-    // Otherwise, process markdown to HTML
-    return md.render(content);
+    // Process markdown to HTML
+    const htmlContent = md.render(content);
+    
+    // Then process LaTeX in the HTML content
+    return processLatex(htmlContent);
   }
   
   // For autoresizing the textarea
@@ -421,6 +468,69 @@
     --agent-msg-bg: #333;
     --input-bg: #2a2a2a;
     --hover-color: #444;
+    /* KaTeX variables for dark mode */
+    --katex-font-color: #f0f0f0;
+    --katex-bg-color: #2d2d2d;
+  }
+  
+  /* Add KaTeX specific styling */
+  :global(.katex) {
+    font-size: 1.1em;
+    line-height: 1.5;
+  }
+  
+  :global(.katex-display) {
+    margin: 1em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+  }
+  
+  /* Better support for dark mode */
+  :global(.dark .katex) {
+    color: var(--katex-font-color, #f0f0f0);
+  }
+  
+  :global(.dark .katex .mord, .dark .katex .mbin, .dark .katex .mrel, 
+          .dark .katex .mopen, .dark .katex .mclose, .dark .katex .mpunct, 
+          .dark .katex .minner) {
+    color: var(--katex-font-color, #f0f0f0);
+  }
+  
+  :global(.dark .katex-display) {
+    background-color: var(--katex-bg-color, transparent);
+    padding: 0.5em;
+    border-radius: 0.25rem;
+  }
+  
+  /* Ensure formulas are clearly visible */
+  :global(.katex-display > .katex) {
+    display: block;
+    text-align: center;
+    white-space: nowrap;
+  }
+  
+  /* For inline math, ensure vertical alignment is correct */
+  :global(.katex-inline) {
+    display: inline-block;
+    vertical-align: middle;
+    padding: 0 0.2em;
+  }
+  
+  /* Make sure the LaTeX formulas stand out a bit in dark mode */
+  :global(.dark .message .content .katex-display) {
+    border: 1px solid #444;
+  }
+  
+  /* Boxed expressions should look good */
+  :global(.katex .boxed) {
+    border: 1px solid;
+    padding: 0.2em;
+  }
+  
+  /* Fractions should have enough space */
+  :global(.katex .mfrac) {
+    margin: 0 0.2em;
   }
 
   .header {

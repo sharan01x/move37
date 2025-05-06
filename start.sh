@@ -13,6 +13,7 @@ echo -e "${BLUE}Starting Move37 Production Environment${NC}"
 # Set production port (default is 8000)
 export API_PORT=8000
 export API_HOST="0.0.0.0"  # Make accessible on LAN
+export MCP_PORT=7777
 
 # Activate virtual environment if it exists
 if [ -d "venv" ]; then
@@ -25,6 +26,10 @@ if [ -f "requirements.txt" ]; then
   pip install -r requirements.txt --quiet
 fi
 
+# Install MCP dependencies if not already installed
+echo -e "${BLUE}Checking/installing MCP dependencies...${NC}"
+pip install mcp fastmcp
+
 # Check if frontend directory exists
 if [ ! -d "frontend" ]; then
   echo -e "${YELLOW}Warning: 'frontend' directory not found${NC}"
@@ -35,6 +40,14 @@ else
   npm install
   cd ..
 fi
+
+# Start the MCP server
+echo -e "${GREEN}Starting MCP server on port $MCP_PORT${NC}"
+python run_mcp_server.py --port $MCP_PORT &
+MCP_PID=$!
+
+# Wait for MCP server to start
+sleep 2
 
 # Start the backend server
 echo -e "${GREEN}Starting backend server on $API_HOST:$API_PORT${NC}"
@@ -85,5 +98,5 @@ echo -e "\n${BLUE}Note: Your frontend is now configured to connect to the backen
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 
 # Wait for Ctrl+C
-trap "kill $BACKEND_PID $FRONTEND_PID; echo -e '\n${GREEN}Servers stopped${NC}'; exit" INT
+trap "kill $MCP_PID $BACKEND_PID $FRONTEND_PID; echo -e '\n${GREEN}Servers stopped${NC}'; exit" INT
 wait 

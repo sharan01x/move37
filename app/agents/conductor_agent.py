@@ -23,6 +23,7 @@ from app.agents.user_fact_extractor_agent import UserFactExtractorAgent
 from app.agents.persephone_agent import PersephoneAgent
 from app.agents.librarian_agent import LibrarianAgent
 from app.agents.butterfly_agent import ButterflyAgent
+from app.agents.recall_agent import RecallAgent
 from app.models.models import DataPackage, RecordResponse, RecallResponse, OperationType, DataType
 from app.models.messages import MessageType
 from app.database.conversation_db import ConversationDBInterface
@@ -51,6 +52,7 @@ class ConductorAgent(BaseAgent):
         self.user_fact_extractor_agent = UserFactExtractorAgent()
         self.librarian_agent = LibrarianAgent()
         self.butterfly_agent = ButterflyAgent()
+        self.recall_agent = RecallAgent()
         
         # Create group chat agents dictionary for easy access
         self.group_chat_agents = {
@@ -167,13 +169,15 @@ class ConductorAgent(BaseAgent):
             # If the target is "butterfly" (which is not in group_chat_agents), handle it separately
             if target_agent == "butterfly":
                 agents_to_use = {"butterfly": self.butterfly_agent}
+            # If the target is "all", use the RecallAgent (new MCP-based agent)
+            elif target_agent == 'all':
+                agents_to_use = {"recall": self.recall_agent}
             # If a specific agent is requested and it's in our group_chat_agents
-            elif target_agent != 'all' and target_agent in self.group_chat_agents:
+            elif target_agent in self.group_chat_agents:
                 agents_to_use = {target_agent: self.group_chat_agents[target_agent]}
-            # If target is 'all' or not specified, use all agents from group_chat_agents
+            # Fallback to the RecallAgent for unknown agent targets
             else:
-                agents_to_use = self.group_chat_agents.copy()
-            
+                agents_to_use = {"recall": self.recall_agent}
             
             if not agents_to_use:
                 return {

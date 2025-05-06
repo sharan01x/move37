@@ -28,9 +28,9 @@ type ConversationHistoryMap = Record<string, Message[]>;
 const agentDefinitions: Agent[] = [
     {
         id: 'all',
-        name: 'Ask Around',
-        description: 'Get multiple perspectives',
-        icon: 'users',
+        name: 'Thinker',
+        description: 'Get thoughtful answers',
+        icon: 'brain',
         color: 'blue'
     },
     {
