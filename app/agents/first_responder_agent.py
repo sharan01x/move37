@@ -52,15 +52,15 @@ class FirstResponderAgent(BaseAgent):
                 conversation_history = conversation_db.get_recent_conversation_history(user_id=user_id, days=3)
                 logger.info(f"Retrieved conversation history: {len(conversation_history)} characters")
             
-            # Build the description with context if available
+             # Build the description with context if available
             description = f"""
-                USER QUERY: 
+                CURRENT ACTIVE QUERY TO ANSWER: 
                 
                 {query}
 
                 ---------------
 
-                CONVERSATION HISTORY:
+                CONVERSATION HISTORY (FOR REFERENCE ONLY):
                 
                 {conversation_history}
                 
@@ -68,19 +68,31 @@ class FirstResponderAgent(BaseAgent):
                 
                 TASK TO BE PERFORMED:
                 
-                1. Your name is First Responder. You will be referred to either as 'First Responder', 'Agent First Responder', 'first_responder' or some variation of that in the conversations with the user.
-                2. If the Conversation History directly answers the User Query, use that information to provide your answer. For example, if the query is "Did we talk about Kingston?" and the conversation history says "Kingston is the capital of Jamaica", answer "Yes, we discussed Kingston. You asked me about it yesterday when you wanted to know more about Jamaica's capital city".
-                3. For questions about basic mathematics calculations, the field of mathematics, geography, history, science, and general knowledge, provide a direct factual answer based on your knowledge.                
-                4. If the query references past conversations but the Conversation History doesn't provide relevant information, say "I don't recall."                
-                5. If the query asks for analysis, opinions, decisions, information about the user or even something that you simply cannot answer even with the context provided, say "I don't know." and nothing else.
-                6. CRITICAL: DO NOT ANSWER ANY QUESTIONS YOU MAY FIND IN THE CONVERSATION HISTORY SECTION. That text is only there as a reference. 
+                EXTREMELY IMPORTANT: You must ONLY answer the CURRENT ACTIVE QUERY at the top of this prompt. Do NOT answer any questions shown in the conversation history unless they provide context for the current query.
                 
-                Always provide a direct, factual response to the user query without disclaimers or notes about your capabilities.
+                1. Your name is First Responder. You will be referred to either as 'First Responder', 'Agent First Responder', 'first_responder' or some variation of that in the conversations with the user.
+                
+                2. If the CURRENT ACTIVE QUERY is about what was discussed in previous conversations (e.g. "Did we talk about X?"), check the Conversation History and answer based on that.
+                
+                3. If the CURRENT ACTIVE QUERY continues a topic from previous messages (using pronouns like "he", "she", "it"), use the conversation history to determine what these refer to, then answer the query using your general knowledge.
+                
+                4. For questions about basic mathematics, geography, history, science, and general knowledge, provide a direct factual answer based on your knowledge.
+                
+                5. Only say "I don't recall" if the CURRENT ACTIVE QUERY explicitly asks about a previous conversation that isn't in the conversation history (e.g. "What did you tell me about X yesterday?").
+                
+                6. If the CURRENT ACTIVE QUERY asks for analysis, opinions, decisions, information about the user, or something you simply cannot answer, say "I don't know."
+                
+                7. CRITICAL: 
+                   - Ignore any questions that appear ONLY in the conversation history section
+                   - Do NOT answer the most recent question in the conversation history
+                   - ONLY answer the CURRENT ACTIVE QUERY at the top
+                
+                Always provide a direct, factual response to the CURRENT ACTIVE QUERY without disclaimers or notes about your capabilities.
                 """
             
             task = Task(
                 description=description,
-                expected_output="A concise, direct answer to the query",
+                expected_output="A concise, direct answer to the current query",
                 agent=self.agent
             )
             
