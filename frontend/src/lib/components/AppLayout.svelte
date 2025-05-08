@@ -70,7 +70,7 @@
     {#if sidebarVisible}
       <div class="sidebar-container" class:mobile={isMobile}>
         {#if isMobile}
-          <button class="close-sidebar" on:click={toggleSidebar}>
+          <button class="close-sidebar" on:click={toggleSidebar} aria-label="Close sidebar">
             <i class="fas fa-times"></i>
           </button>
         {/if}
@@ -174,12 +174,6 @@
   .mobile-logo {
     max-width: 150px;
     height: auto;
-  }
-  
-  .mobile-header h1 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 0;
   }
   
   .menu-button, .user-button, .close-sidebar, .close-panel {

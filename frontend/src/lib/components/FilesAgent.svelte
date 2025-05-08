@@ -985,6 +985,15 @@
           const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
           if (fileInput) fileInput.click();
         }}
+        on:keydown={(e) => {
+          if (e.key === 'Enter') {
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            if (fileInput) fileInput.click();
+          }
+        }}
+        role="button"
+        tabindex="0"
+        aria-label="File upload area - click or drag and drop files here"
         on:dragenter={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1066,10 +1075,15 @@
                 class="file-item-button" 
                 disabled={!file.text_content || (file.processing_status !== 'transcribed' && file.processing_status !== 'complete')}
                 on:click={() => openModal(file)}
+                aria-label="View file content"
               >
                 <i class="fas fa-eye"></i>
               </button>
-              <button class="file-item-button delete" on:click={() => deleteFile(file.id)}>
+              <button 
+                class="file-item-button delete" 
+                on:click={() => deleteFile(file.id)}
+                aria-label="Delete file"
+              >
                 <i class="fas fa-trash"></i>
               </button>
             </div>
@@ -1080,11 +1094,19 @@
     
     <!-- Text content modal -->
     {#if showModal && modalFile}
-      <div class="modal-overlay" on:click|self={closeModal}>
+      <div 
+        class="modal-overlay" 
+        on:click|self={closeModal}
+        on:keydown={(e) => e.key === 'Escape' && closeModal()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="File content editor"
+        tabindex="0"
+      >
         <div class="modal">
           <div class="modal-header">
             <div class="modal-title">{modalFile.file_name}</div>
-            <button class="modal-close" on:click={closeModal}>&times;</button>
+            <button class="modal-close" on:click={closeModal} aria-label="Close modal">&times;</button>
           </div>
           <div class="modal-body">
             <textarea 

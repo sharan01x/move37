@@ -42,13 +42,16 @@ class ConversationToolFunctions:
         # Get the conversation database
         conversation_db = get_conversation_db()
         
-        # Search for similar conversations
-        results = conversation_db.search_conversations(query, k=limit)
-        
-        # Filter by user_id if provided
+        # Create a temporary user-specific instance to handle the search properly
+        # instead of relying on filtering after the search
         if user_id:
-            results = [r for r in results if r.get("user_id") == user_id]
-        
+            # Create a temporary user-specific instance
+            temp_db = ConversationDBInterface(user_id=user_id)
+            results = temp_db.search_conversations(query, k=limit)
+        else:
+            # Use the cached instance but search will not be user-specific
+            results = conversation_db.search_conversations(query, k=limit)
+            
         return results
 
 

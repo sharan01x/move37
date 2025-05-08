@@ -8,6 +8,7 @@
 	import WebSocketNotification from '$lib/components/WebSocketNotification.svelte';
 	import WebSocketInitializer from '$lib/components/WebSocketInitializer.svelte';
 	import { writable, type Writable } from 'svelte/store';
+	import { initializeUserId } from '$lib/stores/chatStore';
 	
 	// Create a global store for user profile panel visibility
 	// Using a context instead of window property for better TypeScript integration
@@ -15,6 +16,9 @@
 	
 	// Initialize on mount
 	onMount(() => {
+		// Initialize user ID
+		initializeUserId();
+		
 		// Listen for user profile button clicks (delegated event)
 		const handleProfileButtonClick = (event: MouseEvent) => {
 			const target = event.target as HTMLElement;
@@ -31,6 +35,12 @@
 		};
 	});
 </script>
+
+<svelte:head>
+	<link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+	<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+	<link rel="icon" type="image/png" sizes="96x96" href="/images/favicon-96x96.png" />
+</svelte:head>
 
 <!-- Initialize theme -->
 <ThemeInitializer />

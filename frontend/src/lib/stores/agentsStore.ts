@@ -27,7 +27,7 @@ type ConversationHistoryMap = Record<string, Message[]>;
 // Agent definitions
 const agentDefinitions: Agent[] = [
     {
-        id: 'all',
+        id: 'thinker',
         name: 'Thinker',
         description: 'Get thoughtful answers',
         icon: 'brain',
@@ -97,11 +97,11 @@ const agentDefinitions: Agent[] = [
 export const agents: Writable<Agent[]> = writable(agentDefinitions);
 
 // Store for the active agent
-export const activeAgent: Writable<string> = writable('all');
+export const activeAgent: Writable<string> = writable('thinker');
 
 // Conversation history for all agents
 export const conversationHistory: Writable<ConversationHistoryMap> = writable({
-    'all': [],
+    'thinker': [],
     'first_responder': [],
     'number_ninja': [],
     'persephone': [],

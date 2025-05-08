@@ -12,17 +12,27 @@
     factCategories 
   } from '$lib/stores/userFactsStore';
   import { formatDateTimeForDisplay } from '$lib/utils/dateUtils';
+  import { browser } from '$app/environment';
+  import { userId as userIdStore, setUserId, getUserId } from '$lib/stores/chatStore';
   
   // Props
   export let isOpen = false;
   
-  // User ID - in a real app, this would come from an auth store
-  let userId = 'default';
+  // User ID from store
+  let userId = getUserId();
   let isEditing = false;
   let tempUserId = userId;
   
   // Load user facts on mount
   onMount(() => {
+    // Subscribe to the userIdStore
+    const unsubscribe = userIdStore.subscribe(value => {
+      if (value) {
+        userId = value;
+        tempUserId = value;
+      }
+    });
+
     // Load facts on mount if the panel is open
     if (isOpen) {
       loadUserFacts(userId);
@@ -39,6 +49,7 @@
     
     return () => {
       document.removeEventListener('refresh-user-facts', handleRefreshEvent as EventListener);
+      unsubscribe();
     };
   });
   
@@ -62,6 +73,7 @@
   function saveUserId() {
     if (tempUserId.trim() !== '') {
       userId = tempUserId.trim();
+      setUserId(userId); // This will now update both the store and localStorage
     } else {
       tempUserId = userId;
     }
@@ -115,6 +127,10 @@
           class="user-id" 
           title="Click to edit"
           on:click={startEditing}
+          on:keydown={(e) => e.key === 'Enter' && startEditing()}
+          role="button"
+          tabindex="0"
+          aria-label="Click to edit user ID"
         >
           {userId}
         </span>
@@ -162,7 +178,7 @@
                 <span class="fact-date">Recorded: {formatDateTimeForDisplay(new Date(fact.recorded_at || fact.created_at || ''))}</span>
               </div>
               <div class="fact-actions">
-                <button class="fact-action-btn delete-btn" on:click={() => handleDeleteFact(fact.id)}>
+                <button class="fact-action-btn delete-btn" on:click={() => handleDeleteFact(fact.id)} aria-label="Delete fact">
                   <i class="fas fa-trash"></i>
                 </button>
               </div>

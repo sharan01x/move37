@@ -84,8 +84,8 @@ BUTTERFLY_LLM_PROVIDER = "ollama"
 BUTTERFLY_LLM_MODEL = "phi4-mini:latest"
 
 # Recall Agent (MCP-based)
-RECALL_LLM_PROVIDER = "ollama"
-RECALL_LLM_MODEL = "qwen3:latest"  # Using the most capable model for tool use
+THINKER_LLM_PROVIDER = "ollama"
+THINKER_LLM_MODEL = "qwen3:latest"  # Using the most capable model for tool use
 
 # For OpenAI (if used)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
@@ -114,3 +114,7 @@ ALLOWED_FILE_TYPES = [
     "text/csv",
     "application/json"
 ]
+
+# MCP Settings
+MCP_SERVER_HOST = os.environ.get("MCP_SERVER_HOST", "localhost")
+MCP_SERVER_PORT = int(os.environ.get("MCP_SERVER_PORT", 7777))

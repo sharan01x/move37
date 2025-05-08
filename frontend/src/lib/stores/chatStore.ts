@@ -225,14 +225,37 @@ export function clearConversation(): void {
     });
 }
 
-// Get the user ID
-export function getUserId(): string | null {
-    return get(userId);
+// Initialize user ID from localStorage
+export function initializeUserId(): void {
+    if (typeof window !== 'undefined') {
+        const storedUserId = localStorage.getItem('userId');
+        if (storedUserId) {
+            userId.set(storedUserId);
+        } else {
+            userId.set('default_user');
+            localStorage.setItem('userId', 'default_user');
+        }
+    }
+}
+
+// Get the user ID with fallback to default
+export function getUserId(): string {
+    const currentId = get(userId);
+    return currentId || 'default_user';
 }
 
 // Set the user ID
 export function setUserId(id: string | null): void {
     userId.set(id);
+    if (typeof window !== 'undefined') {
+        if (id) {
+            localStorage.setItem('userId', id);
+        } else {
+            localStorage.removeItem('userId');
+            userId.set('default_user');
+            localStorage.setItem('userId', 'default_user');
+        }
+    }
 }
 
 // Function to set the active agent ID
@@ -273,4 +296,12 @@ export function clearFileAttachment(): void {
 // Function to set loading state
 export function setLoading(loading: boolean): void {
     isLoading.set(loading);
+}
+
+// Reset user ID to default
+export function resetUserId(): void {
+    userId.set('default_user');
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('userId', 'default_user');
+    }
 } 

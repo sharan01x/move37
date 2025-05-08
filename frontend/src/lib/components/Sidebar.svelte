@@ -39,6 +39,10 @@
         <div 
           class="conversation-item {$activeSidebarItem === agent.id ? 'active' : ''}" 
           on:click={() => handleItemSelect(agent.id)}
+          on:keydown={(e) => e.key === 'Enter' && handleItemSelect(agent.id)}
+          role="button"
+          tabindex="0"
+          aria-label={`Select ${agent.name} - ${agent.description}`}
         >
           <div class="conversation-icon {agent.id}">
             <i class="fas fa-{agent.icon}"></i>
@@ -53,7 +57,15 @@
   </div>
   
   <div class="sidebar-footer">
-    <div id="userProfileButton" class="user-profile-button" on:click={handleUserProfileClick}>
+    <div 
+      id="userProfileButton" 
+      class="user-profile-button" 
+      on:click={handleUserProfileClick}
+      on:keydown={(e) => e.key === 'Enter' && handleUserProfileClick()}
+      role="button"
+      tabindex="0"
+      aria-label="Open user profile"
+    >
       <i class="fas fa-user-circle"></i>
       <span>User Profile</span>
     </div>
@@ -165,6 +177,10 @@
 
   .conversation-icon.butterfly {
     background-color: var(--agent-butterfly-color, #06b6d4);
+  }
+
+  .conversation-icon.thinker {
+    background-color: var(--agent-thinker-color, #2563eb);
   }
 
   /* Submissions and Files icons */

@@ -23,7 +23,7 @@ from app.agents.user_fact_extractor_agent import UserFactExtractorAgent
 from app.agents.persephone_agent import PersephoneAgent
 from app.agents.librarian_agent import LibrarianAgent
 from app.agents.butterfly_agent import ButterflyAgent
-from app.agents.recall_agent import RecallAgent
+from app.agents.thinker_agent import ThinkerAgent
 from app.models.models import DataPackage, RecordResponse, RecallResponse, OperationType, DataType
 from app.models.messages import MessageType
 from app.database.conversation_db import ConversationDBInterface
@@ -52,7 +52,7 @@ class ConductorAgent(BaseAgent):
         self.user_fact_extractor_agent = UserFactExtractorAgent()
         self.librarian_agent = LibrarianAgent()
         self.butterfly_agent = ButterflyAgent()
-        self.recall_agent = RecallAgent()
+        self.thinker_agent = ThinkerAgent()
         
         # Create group chat agents dictionary for easy access
         self.group_chat_agents = {
@@ -163,25 +163,54 @@ class ConductorAgent(BaseAgent):
                 })
             
             # Determine which agents to use based on target_agent
-            target_agent = data_package.metadata.get('target_agent', 'all')
+            target_agent = data_package.metadata.get('target_agent', None)
+            
+            # Check if target_agent is None or 'all' - now we require a specific target
+            if target_agent is None or target_agent == 'all':
+                error_message = "No specific agent targeted. Please specify a target agent for your query."
+                
+                if message_callback:
+                    await message_callback({
+                        "type": "status_update",
+                        "data": {
+                            "message": error_message,
+                            "operation_id": str(uuid.uuid4()),
+                            "is_final": True
+                        }
+                    })
+                
+                return {
+                    "message": error_message
+                }
+            
             agents_to_use = {}
             
-            # If the target is "butterfly" (which is not in group_chat_agents), handle it separately
-            if target_agent == "butterfly":
+            # If the target is "thinker", use the new Thinker agent
+            if target_agent == "thinker":
+                agents_to_use = {"thinker": self.thinker_agent}
+            # If the target is "butterfly", use the Butterfly agent
+            elif target_agent == "butterfly":
                 agents_to_use = {"butterfly": self.butterfly_agent}
-            # If the target is "all", use the RecallAgent (new MCP-based agent)
-            elif target_agent == 'all':
-                agents_to_use = {"recall": self.recall_agent}
             # If a specific agent is requested and it's in our group_chat_agents
             elif target_agent in self.group_chat_agents:
                 agents_to_use = {target_agent: self.group_chat_agents[target_agent]}
-            # Fallback to the RecallAgent for unknown agent targets
-            else:
-                agents_to_use = {"recall": self.recall_agent}
+            
             
             if not agents_to_use:
+                error_message = f"No agents available to process the query. Invalid target agent: {target_agent}"
+                
+                if message_callback:
+                    await message_callback({
+                        "type": "status_update",
+                        "data": {
+                            "message": error_message,
+                            "operation_id": str(uuid.uuid4()),
+                            "is_final": True
+                        }
+                    })
+                
                 return {
-                    "message": f"No agents available to process the query. Invalid target agent: {target_agent}"
+                    "message": error_message
                 }
             
             # Send status about available agents
@@ -235,6 +264,13 @@ class ConductorAgent(BaseAgent):
                         message_callback=agent_message_callback,
                         attachment_file_path=attachment_file_path
                     )
+                elif agent == self.thinker_agent:
+                    # Thinker agent - use the synchronous method wrapped in async
+                    task = agent.answer_query_async(
+                        data_package.text_content,
+                        user_id=data_package.user_id,
+                        message_callback=agent_message_callback
+                    )
                 else:
                     # Other agents don't need special parameters
                     task = agent.answer_query_async(
@@ -247,7 +283,7 @@ class ConductorAgent(BaseAgent):
             # If no tasks were created (target agent not found), return error
             if not tasks:
                 return {
-                    "message": f"No agent found matching target agent: {data_package.target_agent}"
+                    "message": f"No agent found matching target agent: {target_agent}"
                 }
             
             # Process responses as they complete

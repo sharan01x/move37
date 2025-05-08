@@ -29,7 +29,7 @@ fi
 # Start the MCP server with debug flag and SSE transport
 echo -e "${GREEN}Starting MCP server on port $MCP_PORT with SSE transport${NC}"
 # Run with PYTHONPATH set to ensure proper module imports
-PYTHONPATH=. python run_mcp_server.py --port $MCP_PORT --debug --transport sse &
+PYTHONPATH=. python app/mcp/server.py --port $MCP_PORT --host localhost --transport sse --debug &
 MCP_PID=$!
 
 # Wait for MCP server to start and check if it's running
@@ -40,19 +40,6 @@ if ! ps -p $MCP_PID > /dev/null; then
   exit 1
 fi
 echo -e "${GREEN}MCP server process started successfully.${NC}"
-
-# Verify MCP server is responding to HTTP requests
-echo -e "${BLUE}Verifying MCP server connectivity (will timeout after 10 seconds)...${NC}"
-
-# Simple check with timeout - don't get stuck here
-timeout 10 curl -s http://localhost:$MCP_PORT/health > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}MCP server is responding to HTTP requests.${NC}"
-else
-  echo -e "${YELLOW}Note: Could not verify MCP server HTTP connectivity.${NC}"
-  echo -e "${YELLOW}This is normal if it's only using SSE for streams.${NC}"
-  echo -e "${GREEN}Continuing with startup...${NC}"
-fi
 
 # Start the backend
 echo -e "${GREEN}Starting backend on port $API_PORT${NC}"

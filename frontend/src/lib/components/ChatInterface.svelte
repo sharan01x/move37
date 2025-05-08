@@ -348,7 +348,7 @@
   <FilesAgent />
   
   <!-- Theme toggle button at top-right -->
-  <button class="theme-toggle-button" on:click={toggleDarkMode}>
+  <button class="theme-toggle-button" on:click={toggleDarkMode} aria-label="Toggle dark mode">
     <i class="fas {$darkMode ? 'fa-sun' : 'fa-moon'}"></i>
   </button>
   
@@ -403,7 +403,7 @@
       <div class="file-preview">
         <div class="file-info">
           <span class="file-name">{$fileAttachment.name}</span>
-          <button class="remove-file-button" on:click={removeSelectedFile}>
+          <button class="remove-file-button" on:click={removeSelectedFile} aria-label="Remove attached file">
           <i class="fas fa-times"></i>
         </button>
         </div>
@@ -415,7 +415,7 @@
       <StatusMessage />
       
       <div class="chat-input-container" class:hidden={$activeAgent === 'files'}>
-        <button class="icon-button attach-button" on:click={handleFileButtonClick}>
+        <button class="icon-button attach-button" on:click={handleFileButtonClick} aria-label="Attach file">
           <i class="fas fa-paperclip"></i>
         </button>
         
@@ -431,11 +431,12 @@
           class="icon-button send-button" 
           disabled={!$messageInput.trim() && !$fileAttachment} 
           on:click={sendMessage}
+          aria-label="Send message"
         >
           <i class="fas fa-paper-plane"></i>
         </button>
         
-        <button class="icon-button clear-button" on:click={clearChat}>
+        <button class="icon-button clear-button" on:click={clearChat} aria-label="Clear chat">
           <i class="fas fa-trash"></i>
         </button>
       </div>

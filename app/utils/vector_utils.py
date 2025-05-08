@@ -10,11 +10,8 @@ import os
 import numpy as np
 import faiss
 import json
-import logging
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Union
 from pathlib import Path
-
-logger = logging.getLogger(__name__)
 
 def init_faiss_index(dimension: int, index_path: str) -> faiss.Index:
     """Initialize or load a FAISS index.
@@ -86,105 +83,88 @@ def search_vectors_in_index(
     Returns:
         List of metadata for the k most similar vectors.
     """
-    # Ensure query vector is 2D
-    if len(query_vector.shape) == 1:
-        query_vector = query_vector.reshape(1, -1)
-    
-    # Search for similar vectors
-    distances, indices = index.search(query_vector, k)
-    
-    # Check if database path exists
-    if not os.path.exists(db_path):
-        logger.warning(f"Database path not found: {db_path}")
+    try:
+        # Convert query_vector to numpy array if it's a list
+        if isinstance(query_vector, list):
+            query_vector = np.array(query_vector, dtype=np.float32)
+        
+        # Ensure query vector is 2D
+        if len(query_vector.shape) == 1:
+            query_vector = query_vector.reshape(1, -1)
+        
+        # Search for similar vectors
+        distances, indices = index.search(query_vector, k)
+        
+        # Check if database path exists
+        if not os.path.exists(db_path):
+            return []
+        
+        # Create a mapping of all metadata files by their filename (without extension)
+        # This is more reliable than using directory listing order
+        metadata_map = {}
+        
+        # Get all JSON files in the directory
+        metadata_files = [f for f in os.listdir(db_path) if f.endswith('.json')]
+        # Load all metadata into a map
+        for filename in metadata_files:
+            try:
+                file_path = os.path.join(db_path, filename)
+                with open(file_path, "r") as f:
+                    metadata = json.load(f)
+                    
+                    # Handle both list and dictionary formats
+                    if isinstance(metadata, list):
+                        # If it's a list, process each item
+                        for item in metadata:
+                            if isinstance(item, dict) and "id" in item:
+                                metadata_map[item["id"]] = item
+                    elif isinstance(metadata, dict):
+                        # If it's a dictionary, process it directly
+                        if "id" in metadata:
+                            metadata_map[metadata["id"]] = metadata
+                    else:
+                        logger.warning(f"Unexpected metadata format in {filename}: {type(metadata)}")
+            except Exception as e:
+                logger.error(f"Error loading metadata file {filename}: {e}")
+        
+        # Process search results
+        results = []
+        
+        
+        for i, idx in enumerate(indices[0]):
+            if idx == -1:  # No more results
+                continue
+                
+            # Try to find the metadata file that corresponds to this index
+            # We'll look for a file with a name pattern that includes the index
+            # This is a heuristic approach since we don't have a direct mapping
+            potential_matches = []
+            
+            
+            for metadata_id, metadata in metadata_map.items():
+                # Add to potential matches
+                potential_matches.append(metadata)
+                
+                # If we have enough matches, stop looking
+                if len(potential_matches) >= k:
+                    break
+            
+            # If we found potential matches, use them
+            if potential_matches:
+                # Sort by distance (closest first)
+                for j, match in enumerate(potential_matches[:k]):
+                    match_copy = dict(match)
+                    match_copy["distance"] = float(distances[0][i]) if i < len(distances[0]) else 1.0
+                    results.append(match_copy)
+            else:
+                print(f"No potential matches found for index {idx}")
+                    
+        
+        return results
+    except Exception as e:
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return []
-    
-    # Create a mapping of all metadata files by their filename (without extension)
-    # This is more reliable than using directory listing order
-    metadata_map = {}
-    
-    # Get all JSON files in the directory
-    metadata_files = [f for f in os.listdir(db_path) if f.endswith('.json')]
-    logger.info(f"Found {len(metadata_files)} metadata files in {db_path}")
-    
-    # Log some sample filenames for debugging
-    if metadata_files:
-        sample_files = metadata_files[:5] if len(metadata_files) > 5 else metadata_files
-        logger.info(f"Sample metadata files: {sample_files}")
-    
-    # Load all metadata into a map
-    for filename in metadata_files:
-        try:
-            file_path = os.path.join(db_path, filename)
-            with open(file_path, "r") as f:
-                metadata = json.load(f)
-                
-                # Handle both list and dictionary formats
-                if isinstance(metadata, list):
-                    # If it's a list, process each item
-                    logger.info(f"Metadata from {filename} is a list with {len(metadata)} items")
-                    for item in metadata:
-                        if isinstance(item, dict) and "id" in item:
-                            metadata_map[item["id"]] = item
-                            logger.info(f"Added list item: id={item.get('id')}, user_id={item.get('user_id')}")
-                elif isinstance(metadata, dict):
-                    # If it's a dictionary, process it directly
-                    logger.info(f"Metadata from {filename}: id={metadata.get('id')}, user_id={metadata.get('user_id')}")
-                    if "id" in metadata:
-                        metadata_map[metadata["id"]] = metadata
-                else:
-                    logger.warning(f"Unexpected metadata format in {filename}: {type(metadata)}")
-        except Exception as e:
-            logger.error(f"Error loading metadata file {filename}: {e}")
-    
-    # Process search results
-    results = []
-    logger.info(f"FAISS search returned indices: {indices[0].tolist()[:10]}")
-    logger.info(f"FAISS search returned distances: {distances[0].tolist()[:10]}")
-    
-    # Log the total number of metadata items loaded
-    logger.info(f"Total metadata items loaded: {len(metadata_map)}")
-    
-    for i, idx in enumerate(indices[0]):
-        if idx == -1:  # No more results
-            logger.info(f"Skipping index {idx} (no more results)")
-            continue
-            
-        logger.info(f"Processing search result index {idx}")
-        
-        # Try to find the metadata file that corresponds to this index
-        # We'll look for a file with a name pattern that includes the index
-        # This is a heuristic approach since we don't have a direct mapping
-        potential_matches = []
-        
-        # Log how many items we're iterating through
-        logger.info(f"Looking through {len(metadata_map)} metadata items for potential matches")
-        
-        for metadata_id, metadata in metadata_map.items():
-            # Add to potential matches
-            potential_matches.append(metadata)
-            
-            # If we have enough matches, stop looking
-            if len(potential_matches) >= k:
-                break
-        
-        # Log the number of potential matches found
-        logger.info(f"Found {len(potential_matches)} potential matches")
-        
-        # If we found potential matches, use them
-        if potential_matches:
-            # Sort by distance (closest first)
-            for j, match in enumerate(potential_matches[:k]):
-                match_copy = dict(match)
-                match_copy["distance"] = float(distances[0][i]) if i < len(distances[0]) else 1.0
-                logger.info(f"Adding result: id={match_copy.get('id')}, user_id={match_copy.get('user_id')}, distance={match_copy.get('distance')}")
-                results.append(match_copy)
-        else:
-            logger.warning(f"No potential matches found for index {idx}")
-                
-    # Log the number of results found
-    logger.info(f"Found {len(results)} results for query")
-    
-    return results
 
 def delete_vectors_from_index(
     index: faiss.Index,
@@ -221,8 +201,6 @@ def delete_vectors_from_index(
             if os.path.exists(metadata_path_full):
                 os.remove(metadata_path_full)
                 deleted_files.append(metadata_path_full)
-            else:
-                logger.warning(f"[VECTOR DEBUG] Metadata file not found: {metadata_path_full}")
         
         # For FAISS index, we need to rebuild it from scratch since we can't reliably map IDs to indices
         # This is a more reliable approach than trying to remove specific vectors
@@ -247,31 +225,42 @@ def delete_vectors_from_index(
                         vector = np.array(metadata['vector'], dtype=np.float32).reshape(1, -1)
                         new_index.add(vector)
                 except Exception as e:
-                    logger.error(f"[VECTOR DEBUG] Error processing vector file {metadata_file}: {str(e)}")
+                    print(f"[VECTOR DEBUG] Error processing vector file {metadata_file}: {str(e)}")
             
             # Save the new index
             faiss.write_index(new_index, index_path)
         except Exception as e:
-            logger.error(f"[VECTOR DEBUG] Error rebuilding FAISS index: {str(e)}")
+            print(f"[VECTOR DEBUG] Error rebuilding FAISS index: {str(e)}")
             # Continue anyway since we've already deleted the vector files
         
         return True
     except Exception as e:
-        logger.error(f"Error deleting vectors: {e}")
-        logger.error(f"Exception details: {str(e)}")
+        print(f"Error deleting vectors: {e}")
+        print(f"Exception details: {str(e)}")
         import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
+        print(f"Traceback: {traceback.format_exc()}")
         return False
 
-def ensure_vector_2d(vector: np.ndarray) -> np.ndarray:
+def ensure_vector_2d(vector: Union[np.ndarray, List]) -> np.ndarray:
     """Ensure a vector is 2D.
     
     Args:
-        vector: Input vector.
+        vector: Input vector, can be a numpy array or a list.
         
     Returns:
-        2D vector.
+        2D numpy array.
     """
+    # Convert to numpy array if it's a list
+    if isinstance(vector, list):
+        # If it's a list of lists, convert each inner list to a numpy array
+        if vector and isinstance(vector[0], list):
+            vector = np.array([np.array(v, dtype=np.float32) for v in vector], dtype=np.float32)
+        else:
+            # It's a simple list, convert to numpy array directly
+            vector = np.array([vector], dtype=np.float32)
+            return vector
+    
+    # Now we have a numpy array, ensure it's 2D
     if len(vector.shape) == 1:
         return vector.reshape(1, -1)
     return vector 
