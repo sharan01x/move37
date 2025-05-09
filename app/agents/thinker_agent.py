@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from app.core.config import (
     THINKER_LLM_PROVIDER,
     THINKER_LLM_MODEL,
+    FAST_PROCESSING_LLM_MODEL,
     CHAT_API_URL,
     MCP_SERVER_HOST,
     MCP_SERVER_PORT
@@ -48,6 +49,7 @@ class ThinkerAgent:
         # Conversation context tracking
         self._recent_exchanges = []  # List of [query, answer] pairs
         self._max_recent_exchanges = 3  # Keep last 3 exchanges in memory
+        self._context_entities = None  # Cache for extracted context entities
         
         # Client instance - initialized once but used with context manager each time
         self._client_url = f"http://{MCP_SERVER_HOST}:{MCP_SERVER_PORT}/sse"
@@ -75,75 +77,10 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         if len(self._recent_exchanges) > self._max_recent_exchanges:
             self._recent_exchanges.pop(0)  # Remove oldest exchange
             
+        # Reset context entities as they need to be re-analyzed
+        self._context_entities = None
+            
         logger.info(f"Updated conversation context. Now tracking {len(self._recent_exchanges)} recent exchanges.")
-
-    def _format_conversation_context(self) -> str:
-        """
-        Format the recent conversation exchanges for inclusion in prompts.
-        
-        Returns:
-            Formatted string of recent exchanges
-        """
-        if not self._recent_exchanges:
-            return "No recent conversation history available."
-            
-        context = "RECENT CONVERSATION CONTEXT:\n\n"
-        
-        for i, exchange in enumerate(self._recent_exchanges, 1):
-            context += f"Exchange {i}:\n"
-            context += f"User: {exchange['query']}\n"
-            context += f"You (Thinker): {exchange['answer']}\n\n"
-            
-        # Add explicit reference resolution hints if possible
-        if self._recent_exchanges:
-            latest = self._recent_exchanges[-1]
-            # Extract potential entities from the last answer that might be referenced
-            entities = self._extract_potential_entities(latest['answer'])
-            if entities:
-                context += "REFERENCE RESOLUTION HINTS:\n"
-                for entity in entities:
-                    context += f"- If the user refers to '{entity['pronoun']}', they are likely referring to '{entity['entity']}' mentioned in your last response.\n"
-                context += "\n"
-                
-        return context
-    
-    def _extract_potential_entities(self, text: str) -> List[Dict[str, str]]:
-        """
-        Extract potential entities from text that might be referenced later with pronouns.
-        Very simple implementation - in a real system, this would use NLP.
-        
-        Args:
-            text: Text to analyze
-            
-        Returns:
-            List of entity objects with entity and potential pronoun
-        """
-        entities = []
-        
-        # Simple rules to find potential entities
-        # Look for proper nouns (capitalized words not at the start of sentences)
-        words = text.split()
-        for i in range(1, len(words)):
-            word = words[i].strip('.,;:!?()[]{}""\'')
-            if word and word[0].isupper() and len(word) > 1 and not words[i-1].endswith('.'):
-                # Determine likely pronoun based on common name endings or known entities
-                pronoun = "it"  # Default
-                
-                # Very simple gender heuristic - would be much more sophisticated in production
-                if word.lower() in ["he", "him", "his", "she", "her", "hers", "they", "them", "their"]:
-                    continue  # Skip pronouns themselves
-                    
-                # Skip common non-entity capitalized words
-                if word.lower() in ["i", "you", "we", "they", "the", "a", "an"]:
-                    continue
-                    
-                entities.append({
-                    "entity": word,
-                    "pronoun": pronoun
-                })
-        
-        # Ensure we're not sending too many entities back
-        return entities[:3]  # Limit to top 3 potential entities
 
     # Make alias for compatibility with other agents
     async def answer_query_async(self, query: str, user_id: str, message_callback: Optional[Callable] = None) -> Dict[str, Any]:
@@ -168,7 +105,6 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         if message_callback:
             self.message_callback = message_callback
         
-        self._send_status_message("Thinker is connecting to MCP server...")
         
         try:
             # Use the FastMCP client with proper context manager pattern
@@ -184,12 +120,22 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                         "There was an error connecting to the tools needed to answer your query."
                     )
                 
-                # Generate prompts based on available tools
-                system_prompt = self._create_system_prompt(tools, user_id)
+                # Extract context entities to enhance the system prompt
+                context_entities = await self._extract_context_entities()
                 
-                # Include recent conversation context in the user prompt
-                conversation_context = self._format_conversation_context()
-                user_prompt = f"\n\nUser ID: {user_id}\n\n{conversation_context}\nCurrent Query: {query}\n\nPlease answer this query."
+                # Log extraction status
+                if context_entities is False:
+                    logger.warning("Context extraction failed, proceeding without context")
+                elif not context_entities:
+                    logger.info("No context entities extracted (empty string)")
+                else:
+                    logger.info(f"Successfully extracted context: {context_entities[:50]}...")
+                
+                # Generate prompts based on available tools and context
+                system_prompt = await self._create_system_prompt(tools, user_id, context_entities)
+                
+                # Create a simple user prompt without conversation history
+                user_prompt = f"\n\nUser ID: {user_id}\nCurrent Query: {query}\n\nPlease answer this query."
                 
                 # Analyze query with LLM to determine tools needed
                 self._send_status_message("Thinker is analyzing your query...")
@@ -197,12 +143,59 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                     llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
                     clean_llm_response = self._clean_response(llm_response)
                     tool_calls = self._extract_tool_calls(llm_response, tools)
+                    
+                    # Check if the response indicates a need for any resources
+                    resources_to_fetch = self._extract_resource_usages(llm_response)
+                    
                 except Exception as e:
                     logger.error(f"Error processing LLM response: {str(e)}")
                     return self._format_error_response(
                         f"I encountered an error while processing your query: {str(e)}",
                         "There was an error analyzing your query."
                     )
+                
+                # Fetch any requested resources
+                fetched_resources = {}
+                if resources_to_fetch:
+                    for resource_id, resource_info in resources_to_fetch.items():
+                        try:
+                            resource_uri = resource_info.get("resource_uri")
+                            resource_name = resource_info.get("name", resource_id)
+                            
+                            self._send_status_message(f"Fetching {resource_name}...")
+                            resource_response = await self._client.read_resource(resource_uri)
+                            
+                            # Extract content from the resource response in a generic way
+                            resource_content = self._extract_resource_content(resource_response)
+                            
+                            if resource_content:
+                                fetched_resources[resource_id] = {
+                                    "name": resource_name,
+                                    "content": resource_content,
+                                    "uri": resource_uri
+                                }
+                                logger.info(f"Successfully fetched resource: {resource_name}")
+                            
+                        except Exception as e:
+                            logger.error(f"Error fetching resource {resource_name}: {str(e)}")
+                            # Continue without this resource
+                
+                # If we have fetched resources, incorporate them into a new prompt and re-analyze
+                if fetched_resources:
+                    context_sections = []
+                    for resource_id, resource_data in fetched_resources.items():
+                        resource_content = resource_data["content"]
+                        resource_name = resource_data["name"]
+                        context_sections.append(f"INFORMATION FROM RESOURCE {resource_name.upper()}:\n\n{resource_content}")
+                    
+                    # Create an enhanced prompt with all resource context
+                    context_prompt = f"\n\nUser ID: {user_id}\n\n" + "\n\n".join(context_sections) + f"\n\nCurrent Query: {query}\n\nPlease answer this query."
+                    
+                    self._send_status_message("Analyzing query with additional context...")
+                    llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=context_prompt)
+                    clean_llm_response = self._clean_response(llm_response)
+                    # Re-extract tool calls with the updated response
+                    tool_calls = self._extract_tool_calls(llm_response, tools)
                 
                 # If no tools are needed, return the direct response
                 if not tool_calls:
@@ -436,6 +429,8 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                 "stream": False,
                 "options": {"temperature": 0.2}  # Lower temperature for more deterministic responses
             }
+
+            print(f"----------\nPayload: {payload}\n----------")
             
             # Make the API call
             response = requests.post(url, json=payload)
@@ -728,13 +723,14 @@ Based on these results, provide a clear, helpful answer to the original query.
             # Just return the original parameters if we encounter an error
             return tool_params
             
-    def _create_system_prompt(self, tools: List[Any], user_id: str) -> str:
+    async def _create_system_prompt(self, tools: List[Any], user_id: str, context_entities: Union[str, bool] = "") -> str:
         """
-        Create a dynamic system prompt based on available tools.
+        Create a dynamic system prompt based on available tools and conversation context.
         
         Args:
             tools: List of available tools.
             user_id: The user ID to include in the prompt.
+            context_entities: Extracted context from previous conversations, or False if extraction failed.
             
         Returns:
             Formatted system prompt.
@@ -755,7 +751,7 @@ Based on these results, provide a clear, helpful answer to the original query.
 
         # Build examples of how to use the tools
         # Generate examples of proper tool usage
-        tool_examples_text = ""
+        tool_examples_text = "HERE ARE SOME EXAMPLES OF HOW TO USE THE TOOLS:"
         for tool in tools:
             # Get tool details
             tool_name = tool.name
@@ -812,25 +808,66 @@ Based on these results, provide a clear, helpful answer to the original query.
                 tool_list = ", ".join(tools_requiring_user_id)
                 user_id_guidance = f"When using the following tools: {tool_list}, ALWAYS include the user_id parameter set to \"{user_id}\"."
         
+        # Create information about available resources
+        resource_information = f"""
+AVAILABLE RESOURCES:
+
+Resource: Conversation History
+URI: conversations://{user_id}/recent-history
+Description: Provides the past 2 days of conversation history for a user
+When to use: When the user's query contains pronouns or references to previous conversations that need context to understand
+Example usage:
+```json
+{{
+  "action": "read_resource",
+  "resource_uri": "conversations://{user_id}/recent-history",
+  "reasoning": "Need conversation history to understand the context of the user's query"
+}}
+```
+
+TO USE RESOURCES:
+1. Identify when a resource would be helpful for understanding the query
+2. Use client.read_resource() with the appropriate URI
+3. Look at the resource's content before formulating your response
+4. The answer you are looking for may not be in the resource, but it may still inform your response.
+"""
+
+        # Add context entities section if available
+        context_section = ""
+        if context_entities and context_entities is not False:
+            # Print for debugging
+            print(f"\n-------------------\nContext entities: {context_entities}\n-------------------\n")
+            context_section = f"""HERE IS THE CONTEXT OF THE CONVERSATION SO FAR:
+            
+            {context_entities}
+
+Use this context to better understand the user's query and provide more personalized response to the user's query.
+
+"""
+        
         # Create the complete prompt
-        return f"""You are the Thinker agent, also known as "Agent Thinker". You are a specialized assistant that can use tools to answer user queries to provide a helpful, accurate, and succinct answer.
+        return f"""You are the Thinker agent, also known as "Agent Thinker". You are a specialized assistant that can use tools and resources to answer user queries to provide a helpful, accurate, and succinct answer.
 
 You have access to the following tools but use them only when necessary:
 
 {tool_descriptions}
 
+{resource_information}
+
 INSTRUCTIONS FOR ANSWERING USER QUERIES:
 
 1. If the user's query can be answered using your own knowledge and without the use of tools, please do so. 
-2. If the user's query is using pronouns ('he', 'she', 'it', 'they') or references information that is likely to be in the conversation history, get the conversation history to understand the subject and context. 
-3. There may be questions in the conversation history, but your tasks is only to answer the user's current query provided in the user prompt.
+2. If the user's query is using pronouns ('he', 'she', 'it', 'they') or references information that is likely to be in the conversation history, you should use the conversation history resource to understand the subject and context.
+3. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
 4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
 6. {user_id_guidance}
 
-HERE ARE SOME EXAMPLES OF HOW TO USE THE TOOLS:
 
 {tool_examples_text}
+
+
+{context_section}
 
 --------------------------------
 """
@@ -964,3 +1001,223 @@ HERE ARE SOME EXAMPLES OF HOW TO USE THE TOOLS:
             logger.error(f"Error cleaning response: {e}")
             # Return original text with simple tag stripping as fallback
             return re.sub(r'<[^>]+>', '', text).strip()
+
+    def _extract_resource_content(self, resource_response: Any) -> str:
+        """
+        Extract content from a resource response in a generalized way.
+        
+        Args:
+            resource_response: The response from a resource fetch
+            
+        Returns:
+            Extracted content as a string
+        """
+        if not resource_response:
+            return ""
+            
+        try:
+            # Extract content from response based on common patterns
+            if hasattr(resource_response, 'content'):
+                # Handle list of content items
+                if isinstance(resource_response.content, list) and len(resource_response.content) > 0:
+                    # Check if content items have text attribute
+                    if hasattr(resource_response.content[0], 'text'):
+                        return resource_response.content[0].text
+                    # Try direct string access if items are strings
+                    elif isinstance(resource_response.content[0], str):
+                        return resource_response.content[0]
+                    # Try to join content if it's a list of objects
+                    else:
+                        try:
+                            return "\n".join(str(item) for item in resource_response.content)
+                        except Exception:
+                            pass
+                            
+                # Handle content object with text attribute
+                elif hasattr(resource_response.content, 'text'):
+                    return resource_response.content.text
+                # Handle content that is a direct string
+                elif isinstance(resource_response.content, str):
+                    return resource_response.content
+                    
+            # Try direct text attribute
+            if hasattr(resource_response, 'text'):
+                return resource_response.text
+                
+            # Try value attribute
+            if hasattr(resource_response, 'value'):
+                return str(resource_response.value)
+                
+            # Try dictionary access
+            if isinstance(resource_response, dict):
+                # Look for common content keys
+                for key in ["content", "text", "data", "value", "result", "response"]:
+                    if key in resource_response:
+                        content = resource_response[key]
+                        return content if isinstance(content, str) else str(content)
+                        
+            # Last resort: convert to string
+            return str(resource_response)
+            
+        except Exception as e:
+            logger.error(f"Error extracting resource content: {e}")
+            return f"Error extracting resource content: {e}"
+            
+    def _extract_resource_usages(self, llm_response: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Extract all resource usage instructions from the LLM response.
+        
+        Args:
+            llm_response: The full LLM response text
+            
+        Returns:
+            Dictionary mapping resource IDs to resource usage info
+        """
+        resource_usages = {}
+        
+        try:
+            # Extract resource usages from JSON blocks
+            json_pattern = r'```json\s*({.*?"action"\s*:\s*"read_resource".*?})\s*```'
+            matches = re.findall(json_pattern, llm_response, re.DOTALL)
+            
+            for idx, match in enumerate(matches):
+                try:
+                    resource_data = json.loads(match)
+                    # Check if this is a resource access request
+                    if resource_data.get("action") == "read_resource" and "resource_uri" in resource_data:
+                        resource_id = resource_data.get("id", f"resource_{idx}")
+                        resource_name = resource_data.get("name", "Resource")
+                        resource_uri = resource_data.get("resource_uri")
+                        
+                        resource_usages[resource_id] = {
+                            "resource_uri": resource_uri,
+                            "name": resource_name,
+                            "reasoning": resource_data.get("reasoning", "")
+                        }
+                except json.JSONDecodeError:
+                    continue
+                    
+            # If no JSON blocks found, try simpler pattern matching
+            if not resource_usages:
+                # Look for common resource URI schemes
+                uri_patterns = [
+                    (r'conversations://[^\s"\']+', "Conversation History"),
+                    (r'documents://[^\s"\']+', "Document"),
+                    (r'data://[^\s"\']+', "Data"),
+                    (r'files://[^\s"\']+', "File")
+                ]
+                
+                for idx, (pattern, name) in enumerate(uri_patterns):
+                    uris = re.findall(pattern, llm_response)
+                    for uri_idx, uri in enumerate(uris):
+                        resource_id = f"resource_{idx}_{uri_idx}"
+                        resource_usages[resource_id] = {
+                            "resource_uri": uri,
+                            "name": name,
+                            "reasoning": "Extracted from text pattern"
+                        }
+                        
+            return resource_usages
+            
+        except Exception as e:
+            logger.error(f"Error extracting resource usages: {e}")
+            return {}
+
+    async def _extract_context_entities(self) -> Union[str, bool]:
+        """
+        Extract important entities and context from recent conversations using a fast LLM.
+        
+        Returns:
+            String containing the key entities and context, or False if extraction failed
+        """
+        # If no recent exchanges, return empty context
+        if not self._recent_exchanges:
+            logger.info("No recent exchanges found, skipping context extraction")
+            return ""
+            
+        # If we already have extracted entities and they're still valid, return them
+        if self._context_entities is not None:
+            logger.info("Using cached context entities")
+            return self._context_entities
+            
+        # Format conversations for analysis
+        conversation_text = ""
+        for i, exchange in enumerate(self._recent_exchanges, 1):
+            conversation_text += f"Exchange {i}:\n"
+            conversation_text += f"User: {exchange['query']}\n"
+            conversation_text += f"Assistant: {exchange['answer']}\n\n"
+        
+        # Create a prompt for entity extraction
+        prompt = f"""
+Please analyze these recent conversation exchanges and identify:
+1. The main subjects/topics being discussed
+2. Key entities (people, places, things, dates, concepts) that may be mentioned
+3. Any important context that would help if follow-up questions are asked
+4. User preferences or constraints if mentioned
+
+Format your response as a very concise summary paragraph with about 3 sentences, that captures the essential context. Do not include a title. 
+
+Recent conversation:
+{conversation_text}
+"""
+        
+        # Try up to 2 times (initial attempt + 1 retry)
+        for attempt in range(2):
+            try:
+                if attempt > 0:
+                    logger.warning(f"Retrying context extraction (attempt {attempt+1}/2)")
+                
+                logger.info(f"Extracting context entities using {FAST_PROCESSING_LLM_MODEL}")
+                # Call the fast processing LLM
+                url = CHAT_API_URL
+                
+                # Prepare the payload with the fast processing model
+                payload = {
+                    "model": FAST_PROCESSING_LLM_MODEL,
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful context analyzer. Extract only the most important context from conversations."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.1}  # Lower temperature for more consistent extraction
+                }
+                
+                # Make the API call
+                response = requests.post(url, json=payload, timeout=15)  # Increased timeout for reliability
+                response.raise_for_status()
+                
+                # Extract the content from the response
+                response_json = response.json()
+                
+                # Extract text based on API response format
+                entity_text = None
+                if "message" in response_json and "content" in response_json["message"]:
+                    entity_text = response_json["message"]["content"]
+                elif "response" in response_json:
+                    entity_text = response_json["response"]
+                
+                # Validate we got a meaningful response
+                if not entity_text or len(entity_text.strip()) < 10:
+                    logger.warning(f"Received suspiciously short or empty context: '{entity_text}'")
+                    if attempt == 0:
+                        continue  # Try again
+                    else:
+                        return False  # Give up after second attempt
+                
+                # Cache the extracted entities
+                self._context_entities = entity_text
+                logger.info(f"Successfully extracted context entities: {entity_text[:100]}...")
+                return entity_text
+                    
+            except Exception as e:
+                logger.error(f"Error extracting context entities (attempt {attempt+1}/2): {str(e)}")
+                if attempt == 0:
+                    # Wait a moment before retry
+                    await asyncio.sleep(1)
+                    continue
+                else:
+                    # Final attempt failed
+                    return False
+        
+        # This should never be reached due to the return in the loop, but just in case
+        return False

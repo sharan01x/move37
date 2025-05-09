@@ -6,7 +6,6 @@ Tool for accessing past conversations in the Move 37 application.
 """
 
 from typing import Dict, Any, List, Optional
-from langchain_community.tools import Tool
 from functools import lru_cache
 
 from app.database.conversation_db import ConversationDBInterface
@@ -27,37 +26,50 @@ class ConversationToolFunctions:
     """Function implementations for the conversation tool."""
     
     @staticmethod
-    def search_past_conversations(query: str, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def get_recent_conversation_history(user_id: str, days: int = 2) -> str:
+        """
+        Retrieve past conversations for a user over the specified number of days.
+        
+        Args:
+            user_id: User ID required for authentication
+            days: (Optional) Number of days of history to retrieve. Default is 2 days.
+            
+        Returns:
+            Recent conversation history of the user with various agents within the system
+        """
+        if not user_id:
+            raise ValueError("user_id is required and cannot be empty")
+            
+        # Create a user-specific instance to ensure we're looking in the right folder
+        conversation_db = ConversationDBInterface(user_id=user_id)
+        
+        # Get the conversation history
+        conversation_history = conversation_db.get_recent_conversation_history(
+            user_id=user_id, 
+            days=days
+        )
+        
+        return conversation_history
+    
+    @staticmethod
+    def search_past_conversations(query: str, user_id: str, limit: int = 1) -> List[Dict[str, Any]]:
         """
         Search for past conversations by query similarity.
         
         Args:
             query: Query string to search for.
             user_id: User ID to filter by.
-            limit: Maximum number of results to return.
+            limit: (Optional) Maximum number of results to return. Default is 1.
             
         Returns:
             List of conversations ordered by relevance and in reverse-chronological order.
         """
-        # Get the conversation database
-        conversation_db = get_conversation_db()
-        
-        # Create a temporary user-specific instance to handle the search properly
-        # instead of relying on filtering after the search
-        if user_id:
-            # Create a temporary user-specific instance
-            temp_db = ConversationDBInterface(user_id=user_id)
-            results = temp_db.search_conversations(query, k=limit)
-        else:
-            # Use the cached instance but search will not be user-specific
-            results = conversation_db.search_conversations(query, k=limit)
+        if not user_id:
+            raise ValueError("user_id is required and cannot be empty")
+            
+        # Create a user-specific instance to handle the search properly
+        temp_db = ConversationDBInterface(user_id=user_id)
+        results = temp_db.search_conversations(query, k=limit)
             
         return results
-
-
-# Create a tool for searching past conversations
-conversation_search_tool = Tool(
-    name="search_past_conversations",
-    func=ConversationToolFunctions.search_past_conversations,
-    description="Search for past conversations by query similarity. Returns conversations most similar to the query and ordered in reverse-chronological order."
-)
+        

@@ -3,7 +3,7 @@
 
 """
 MCP (Model Context Protocol) server for Move37.
-This server exposes tools that can be used by the Thinker agent.
+This server exposes tools and resources that can be used by the Thinker agent.
 """
 
 import argparse
@@ -14,7 +14,6 @@ from fastmcp import FastMCP
 
 from app.tools.math_tool import MathToolFunctions
 from app.tools.conversation_tool import ConversationToolFunctions
-from app.database.conversation_db import ConversationDBInterface
 from app.core.config import MCP_SERVER_PORT, MCP_SERVER_HOST
 
 # Set up logging
@@ -49,29 +48,53 @@ def create_server():
             logger.error(f"Error processing math query: {e}")
             return {"error": str(e)}
     
-    @mcp.tool()
-    def get_past_conversations(user_id: str, days: int = 3):
+    # Resource for conversation history (replaces the tool)
+    @mcp.resource("conversations://{user_id}/recent-history")
+    def recent_conversation_history(user_id: str):
         """
-        Retrieve past conversations for a user over the specified number of days.
+        Retrieve recent conversation history for a user over the past 2 days.
         
         Args:
             user_id: User ID required for authentication
-            days: (Optional) Number of days of history to retrieve. By default, 3 days are retrieved.
             
         Returns:
             Recent conversation history of the user with various agents within the system
         """
         try:
             if not user_id:
-                logger.error("No user_id provided for get_past_conversations")
-                raise ValueError("user_id is required and cannot be empty")
+                logger.error("No user_id provided for conversation history resource")
+                return {"error": "user_id is required and cannot be empty"}
                 
-            logger.info(f"Retrieving {days} days of conversation history for user '{user_id}'")
-            conversation_db = ConversationDBInterface(user_id=user_id)
-            conversation_history = conversation_db.get_recent_conversation_history(user_id=user_id, days=days)
+            logger.info(f"Retrieving conversation history for user '{user_id}'")
+            conversation_history = ConversationToolFunctions.get_recent_conversation_history(user_id=user_id)
             return conversation_history
         except Exception as e:
             logger.error(f"Error retrieving conversation history: {e}")
+            return {"error": str(e)}
+    
+    @mcp.tool()
+    def search_past_conversations(query: str, user_id: str, limit: int = 1):
+        """
+        Search for past conversations by query similarity.
+        
+        Args:
+            query: Query string to search for
+            user_id: User ID required for authentication
+            limit: (Optional) Maximum number of results to return. Default is 1.
+            
+        Returns:
+            List of conversations ordered by relevance and in reverse-chronological order
+        """
+        try:
+            if not user_id:
+                logger.error("No user_id provided for search_past_conversations")
+                raise ValueError("user_id is required and cannot be empty")
+                
+            logger.info(f"Searching conversations with query '{query}' for user '{user_id}'")
+            results = ConversationToolFunctions.search_past_conversations(query=query, user_id=user_id, limit=limit)
+            return results
+        except Exception as e:
+            logger.error(f"Error searching conversations: {e}")
             return {"error": str(e)}
     
     return mcp

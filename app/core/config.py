@@ -87,6 +87,10 @@ BUTTERFLY_LLM_MODEL = "phi4-mini:latest"
 THINKER_LLM_PROVIDER = "ollama"
 THINKER_LLM_MODEL = "qwen3:latest"  # Using the most capable model for tool use
 
+# Fast Processing Model
+FAST_PROCESSING_LLM_PROVIDER = "ollama"
+FAST_PROCESSING_LLM_MODEL = "phi4-mini:latest"
+
 # For OpenAI (if used)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
