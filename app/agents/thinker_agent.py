@@ -430,7 +430,8 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                 "options": {"temperature": 0.2}  # Lower temperature for more deterministic responses
             }
 
-            print(f"----------\nPayload: {payload}\n----------")
+            print(f"----------\nSystem Prompt: {system_prompt}\n----------")
+            print(f"----------\nUser Prompt: {user_prompt}\n----------")
             
             # Make the API call
             response = requests.post(url, json=payload)
@@ -835,24 +836,26 @@ TO USE RESOURCES:
         # Add context entities section if available
         context_section = ""
         if context_entities and context_entities is not False:
-            # Print for debugging
-            print(f"\n-------------------\nContext entities: {context_entities}\n-------------------\n")
             context_section = f"""HERE IS THE CONTEXT OF THE CONVERSATION SO FAR:
             
-            {context_entities}
-
-Use this context to better understand the user's query and provide more personalized response to the user's query.
+{context_entities}
 
 """
         
         # Create the complete prompt
         return f"""You are the Thinker agent, also known as "Agent Thinker". You are a specialized assistant that can use tools and resources to answer user queries to provide a helpful, accurate, and succinct answer.
 
-You have access to the following tools but use them only when necessary:
+You have access to the following tools and resources but use them only when necessary:
 
 {tool_descriptions}
 
+{tool_examples_text}
+
+{user_id_guidance}
+
 {resource_information}
+
+{context_section}
 
 INSTRUCTIONS FOR ANSWERING USER QUERIES:
 
@@ -861,13 +864,8 @@ INSTRUCTIONS FOR ANSWERING USER QUERIES:
 3. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
 4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
-6. {user_id_guidance}
-
-
-{tool_examples_text}
-
-
-{context_section}
+6. If you are provided the user's preferences, use it to personalize the answer to the user's query.
+7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. 
 
 --------------------------------
 """
