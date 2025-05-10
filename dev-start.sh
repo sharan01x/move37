@@ -26,6 +26,36 @@ if [ ! -d "frontend" ]; then
   exit 1
 fi
 
+# Function to handle cleanup
+cleanup() {
+    echo -e "\n${BLUE}Shutting down services...${NC}"
+    
+    # Kill processes in reverse order of startup
+    if [ ! -z "$FRONTEND_PID" ]; then
+        echo -e "${BLUE}Stopping frontend...${NC}"
+        kill $FRONTEND_PID 2>/dev/null || true
+    fi
+    
+    if [ ! -z "$BACKEND_PID" ]; then
+        echo -e "${BLUE}Stopping backend...${NC}"
+        kill $BACKEND_PID 2>/dev/null || true
+    fi
+    
+    if [ ! -z "$MCP_PID" ]; then
+        echo -e "${BLUE}Stopping MCP server...${NC}"
+        kill $MCP_PID 2>/dev/null || true
+    fi
+    
+    # Wait for processes to finish
+    wait 2>/dev/null || true
+    
+    echo -e "${GREEN}All services stopped${NC}"
+    exit 0
+}
+
+# Set up trap for cleanup
+trap cleanup SIGINT SIGTERM EXIT
+
 # Start the MCP server with debug flag and SSE transport
 echo -e "${GREEN}Starting MCP server on port $MCP_PORT with SSE transport${NC}"
 # Run with PYTHONPATH set to ensure proper module imports
@@ -71,6 +101,5 @@ echo -e "Backend: http://localhost:$API_PORT"
 echo -e "Frontend: http://localhost:$FRONTEND_PORT"
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 
-# Wait for Ctrl+C
-trap "kill $MCP_PID $BACKEND_PID $FRONTEND_PID; echo -e '\n${GREEN}Development servers stopped${NC}'; exit" INT
+# Wait for all background processes
 wait 
