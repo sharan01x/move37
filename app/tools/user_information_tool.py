@@ -88,9 +88,9 @@ def get_user_facts_relevant_to_query(user_id: str, query: str) -> str:
                 logger.info(f"Using {len(relevant_facts)} recent facts as fallback")
         
         # Format facts for the prompt
-        facts_context = ""
+        facts_context = "No relevant facts found about the user found"
         if relevant_facts:
-            facts_context = "Here are the facts I know about the user:\n\n"
+            facts_context = ""
             for i, fact in enumerate(relevant_facts, 1):
                 # Format the date
                 created_date = ""

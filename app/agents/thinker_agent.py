@@ -22,7 +22,7 @@ from app.core.config import (
     CHAT_API_URL
 )
 from app.mcp.client import MCPClient
-from app.tools.user_information_tool import get_user_preferences
+from app.tools.user_information_tool import get_user_preferences, get_user_facts_relevant_to_query
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                 pass  # No context entities extracted (empty string)
             
             # Generate prompts based on available tools and context
-            system_prompt = await self._create_system_prompt(tools, user_id, context_entities, resources)
+            system_prompt = await self._create_system_prompt(tools, user_id, query, context_entities, resources)
             
             # Create a simple user prompt without conversation history
             user_prompt = f"\n\nUser ID: {user_id}\nCurrent Query: {query}\n\nPlease answer this query."
@@ -400,7 +400,7 @@ Based on these results, provide a clear, helpful answer to the original query.
                 "agent_name": self.name
             }
     
-    async def _create_system_prompt(self, tools: List[Any], user_id: str, context_entities: Union[str, bool] = "", resources: List[Any] = None) -> str:
+    async def _create_system_prompt(self, tools: List[Any], user_id: str, query: str, context_entities: Union[str, bool] = "", resources: List[Any] = None) -> str:
         """
         Create a dynamic system prompt based on available tools and conversation context.
         
@@ -483,7 +483,15 @@ Based on these results, provide a clear, helpful answer to the original query.
             user_preference_information += get_user_preferences(user_id)
         except Exception as e:
             logger.error(f"Error fetching user preferences: {e}")
-            user_preference_information = "Could not retrieve user preferences due to an error."
+            user_preference_information = ""
+
+        # Build the set of user facts that are relevant to the user's query
+        user_facts = "FACTS ABOUT THE USER RELEVANT TO THE QUERY:\n\n"
+        try:
+            user_facts += get_user_facts_relevant_to_query(user_id, query)
+        except Exception as e:
+            logger.error(f"Error fetching user facts: {e}")
+            user_facts = ""
         
         # Build the user_id guidance
         user_id_guidance = ""
@@ -565,6 +573,8 @@ You have access to the following tools and resources but use them only when nece
 
 {user_preference_information}
 
+{user_facts}
+
 INSTRUCTIONS FOR ANSWERING USER QUERIES:
 
 1. If the user's query can be answered using your own knowledge and without the use of tools, please do so. 
@@ -573,7 +583,7 @@ INSTRUCTIONS FOR ANSWERING USER QUERIES:
 3. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
 4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
-6. If you have the user's preferences, use them to personalize the answer to the user's query as relevant.
+6. If you have the user's preferences or facts about the user, use them to personalize the answer to the user's query in a friendly and engaging way.
 7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. 
 
 {context_section}
@@ -606,14 +616,15 @@ INSTRUCTIONS FOR ANSWERING USER QUERIES:
             conversation_text += f"Exchange {i}:\n"
             conversation_text += f"User: {exchange['query']}\n"
             conversation_text += f"Assistant: {exchange['answer']}\n\n"
-        
-        # Create a prompt for entity extraction
-        prompt = f"""
+
+        # Do the LLM analysis only if there are any recent exchanges
+        if conversation_text:
+            # Create a prompt for entity extraction
+            prompt = f"""
 Please analyze these recent conversation exchanges and identify:
 1. The main subjects/topics being discussed
 2. Key entities (people, places, things, dates, concepts) that may be mentioned
 3. Any important context that would help if follow-up questions are asked
-4. User preferences or constraints if mentioned. If not mentioned, don't say anything about them.
 
 Format your response as a very concise summary paragraph with about 3 sentences, that captures the essential context. Do not include a title. 
 
@@ -676,9 +687,10 @@ Recent conversation:
                 else:
                     # Final attempt failed
                     return False
+        else:
+            return False
         
-        # This should never be reached due to the return in the loop, but just in case
-        return False
+
     
     def set_message_callback(self, callback: Callable):
         """

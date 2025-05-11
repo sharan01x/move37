@@ -7,14 +7,12 @@ This server exposes tools and resources that can be used by the Thinker agent.
 """
 
 import argparse
-import asyncio
 import logging
-import os
 from fastmcp import FastMCP
 
 from app.tools.math_tool import MathToolFunctions
 from app.tools.conversation_tool import ConversationToolFunctions
-from app.tools.user_information_tool import get_user_preferences, get_user_facts_relevant_to_query
+from app.tools.file_search_tool import FileSearchToolFunctions
 from app.core.config import MCP_SERVER_PORT, MCP_SERVER_HOST
 
 # Set up logging
@@ -77,7 +75,7 @@ def create_server():
     @mcp.tool()
     def search_past_conversations(query: str, user_id: str, limit: int = 1):
         """
-        Search for past conversations by query similarity.
+        Search for past conversations by to find anything relevant to the search parameters using a semantic search.
         
         Args:
             query: Query string to search for
@@ -97,28 +95,73 @@ def create_server():
         except Exception as e:
             logger.error(f"Error searching conversations: {e}")
             return {"error": str(e)}
-
+    
     @mcp.tool()
-    def get_user_facts_relevant_to_query(query: str, user_id: str):
+    def find_information_within_user_files(query: str, user_id: str):
         """
-        Search for facts relevant to a specific query from the user's database.
+        Find specific information within the user's uploaded files
         
         Args:
-            query: Query string to search for relevant facts
+            query: The information to find in the user's files
             user_id: User ID required for authentication
             
         Returns:
-            Formatted string containing relevant facts about the user
+            An answer to the query based on information found in the user's files
         """
         try:
             if not user_id:
-                logger.error("No user_id provided for get_user_facts_relevant_to_query")
+                logger.error("No user_id provided for find_information_from_files")
                 raise ValueError("user_id is required and cannot be empty")
                 
-            facts = get_user_facts_relevant_to_query(user_id=user_id, query=query)
-            return facts
+            result = FileSearchToolFunctions.find_information_within_user_files(query=query, user_id=user_id)
+            return result
         except Exception as e:
-            logger.error(f"Error retrieving user facts: {e}")
+            logger.error(f"Error finding information from files: {e}")  
+            return {"error": str(e)}
+    
+    @mcp.tool()
+    def get_file_content(file_name: str, user_id: str):
+        """
+        Retrieve the full content of a specific document.
+        
+        Args:
+            file_name: Name of the file to retrieve
+            user_id: User ID required for authentication
+            
+        Returns:
+            The content of the file as text
+        """
+        try:
+            if not user_id:
+                logger.error("No user_id provided for get_file_content")
+                raise ValueError("user_id is required and cannot be empty")
+                
+            content = FileSearchToolFunctions.get_file_content(file_name=file_name, user_id=user_id)
+            return content
+        except Exception as e:
+            logger.error(f"Error retrieving file content: {e}")
+            return {"error": str(e)}
+    
+    @mcp.tool()
+    def list_user_files(user_id: str):
+        """
+        List all files uploaded by a user
+        
+        Args:
+            user_id: User ID required for authentication
+            
+        Returns:
+            Dictionary containing the list of files and their metadata
+        """
+        try:
+            if not user_id:
+                logger.error("No user_id provided for list_user_files")
+                raise ValueError("user_id is required and cannot be empty")
+                
+            files = FileSearchToolFunctions.list_user_files(user_id=user_id)
+            return files
+        except Exception as e:
+            logger.error(f"Error listing user files: {e}")
             return {"error": str(e)}
     
     return mcp
