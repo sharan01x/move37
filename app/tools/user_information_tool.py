@@ -31,7 +31,7 @@ def get_user_preferences(user_id: str) -> str:
         preference_facts = user_specific_db.get_facts_by_category("preference")
         
         if preference_facts:
-            user_preferences = "Here are the user's preferences:\n\n"
+            user_preferences = ""
             for i, pref in enumerate(preference_facts, 1):
                 # Format the date
                 created_date = ""

@@ -98,33 +98,6 @@ def create_server():
             logger.error(f"Error searching conversations: {e}")
             return {"error": str(e)}
 
-    # Resource for user preferences
-    @mcp.resource(
-        uri="user://{user_id}/preferences",
-        name="User Preferences",
-        description="User's preferences and settings"
-    )
-    def user_preferences(user_id: str):
-        """
-        Retrieve user preferences from the database.
-        
-        Args:
-            user_id: User ID required for authentication
-            
-        Returns:
-            Formatted string containing the user's preferences
-        """
-        try:
-            if not user_id:
-                logger.error("No user_id provided for user preferences resource")
-                return {"error": "user_id is required and cannot be empty"}
-                
-            preferences = get_user_preferences(user_id=user_id)
-            return preferences
-        except Exception as e:
-            logger.error(f"Error retrieving user preferences: {e}")
-            return {"error": str(e)}
-
     @mcp.tool()
     def get_user_facts_relevant_to_query(query: str, user_id: str):
         """

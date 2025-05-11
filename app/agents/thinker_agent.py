@@ -22,6 +22,7 @@ from app.core.config import (
     CHAT_API_URL
 )
 from app.mcp.client import MCPClient
+from app.tools.user_information_tool import get_user_preferences
 
 logger = logging.getLogger(__name__)
 
@@ -476,6 +477,14 @@ Based on these results, provide a clear, helpful answer to the original query.
                 # Add example as formatted text to the examples string
                 tool_examples_text += f"\nExample for {tool_name}:\n```json\n{json_example}\n```\nOR as a function call: `{func_example}`\n"
         
+        # Build the user preferences block
+        user_preference_information = "USER PREFERENCES:\n\n"
+        try:
+            user_preference_information += get_user_preferences(user_id)
+        except Exception as e:
+            logger.error(f"Error fetching user preferences: {e}")
+            user_preference_information = "Could not retrieve user preferences due to an error."
+        
         # Build the user_id guidance
         user_id_guidance = ""
         if tools_requiring_user_id:
@@ -550,18 +559,21 @@ You have access to the following tools and resources but use them only when nece
 
 {tool_examples_text}
 
+{resource_information}
+
 {user_id_guidance}
 
-{resource_information}
+{user_preference_information}
 
 INSTRUCTIONS FOR ANSWERING USER QUERIES:
 
 1. If the user's query can be answered using your own knowledge and without the use of tools, please do so. 
 2. If the user's query is using pronouns ('he', 'she', 'it', 'they') or references information that is likely to be in the conversation history, you should use the conversation history resource to understand the subject and context.
+3. If you need to reference something from the past conversations, try to find it first through the conversation history resource before using any other tools to find the information. It's just faster.
 3. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
 4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
-6. If you are are able to get the user's preferences, get it and use it to personalize the answer to the user's query.
+6. If you have the user's preferences, use them to personalize the answer to the user's query as relevant.
 7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. 
 
 {context_section}

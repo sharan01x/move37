@@ -132,7 +132,7 @@ Your task is to analyze the following text and identify any facts about the user
 5. Personal relationships and social connections (spouse, parents, relatives, children, pets)
 6. Other facts about the user
 
-Known Facts:
+KNOWN FACTS ABOUT THE USER:
 __________________
 
 {existing_facts_context}
@@ -140,21 +140,23 @@ __________________
 __________________
 
 When analyzing the text, please:
-1. Identify new facts about the user that are not already mentioned in the known facts
+1. Identify new facts about the user that are not already mentioned in the known facts about the user
 2. Identify facts about the user that contradict known facts (and note the contradiction by adding something like "...though he previously didn't like it" or "...but she has been a vegetarian for a short while"). 
 3. Be careful and call a fact a contradiction only if it is exactly the same. For example, "The user likes beaches" contradicts "The user does't like beaches", but "The user like vanilla ice cream" does not contradict "The user likes strawberry ice cream" as it is possible for a person to like more than one flavour of ice cream.
 4. In cases where a fact is mentioned about groups of things, create a fact for each. For example, if the text mentions "John went to the pub with his best friends from school, Mike and Sarah", create two facts: "John went to the pub with his best friend from school, Mike" and "John went to the pub with his best friend from school, Sarah".
 
 For each personal fact you identify, provide:
-- The fact itself (a clear, concise statement) that usually starts with "The user", such as "The user's name is John" or if the user'sname is known, then something like "John played football in high school" or "John is a software engineer"
-- The category it belongs to (personal_info, preference, habit, goal, relationship, other)
+- The fact itself (a clear, concise statement) that usually starts with "The user", such as "The user's name is John"
+- The category the fact belongs to (personal_info, preference, habit, goal, relationship, other)
 - A confidence score (0 to 100) indicating how certain you are about this fact
+- Be careful when assigning the category to the fact as multiple facts may be provided in the text and so, some of the facts may belong to one category while others may belong to another category.
 
 Only extract facts that are explicitly stated or can be directly inferred with high confidence. Do not make assumptions or extract facts with low confidence.
 
 Format your response as a JSON array of objects, each with "fact", "category", and "confidence" fields.
 
-Text to analyze:
+TEXT TO ANALYZE:
+__________________
 "{text}"
 
 Facts:"""
