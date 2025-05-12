@@ -23,12 +23,13 @@ fi
 # Check if requirements are installed
 if [ -f "requirements.txt" ]; then
   echo -e "${BLUE}Checking for dependencies...${NC}"
-  pip install -r requirements.txt --quiet
+  pip install -r requirements.txt --quiet || echo -e "${YELLOW}Some dependencies could not be installed, continuing anyway...${NC}"
 fi
 
 # Install MCP dependencies if not already installed
 echo -e "${BLUE}Checking/installing MCP dependencies...${NC}"
-pip install mcp fastmcp
+# Don't fail if dependencies can't be installed
+pip install mcp fastmcp --quiet || echo -e "${YELLOW}MCP dependencies could not be installed, continuing anyway...${NC}"
 
 # Check if frontend directory exists
 if [ ! -d "frontend" ]; then
@@ -71,13 +72,14 @@ cleanup() {
 # Set up trap for cleanup
 trap cleanup SIGINT SIGTERM EXIT
 
-# Start the MCP server
+# Start the MCP server - UPDATED to use the correct path
 echo -e "${GREEN}Starting MCP server on port $MCP_PORT${NC}"
-python run_mcp_server.py --port $MCP_PORT &
+# Use PYTHONPATH to ensure modules are found correctly
+PYTHONPATH=. python app/mcp/server.py --port $MCP_PORT --host "0.0.0.0" --transport sse &
 MCP_PID=$!
 
 # Wait for MCP server to start
-sleep 2
+sleep 5
 if ! ps -p $MCP_PID > /dev/null; then
   echo -e "${RED}MCP server failed to start. Check logs for errors.${NC}"
   exit 1
@@ -87,13 +89,13 @@ echo -e "${GREEN}MCP server process started successfully.${NC}"
 # Start the backend server
 echo -e "${GREEN}Starting backend server on $API_HOST:$API_PORT${NC}"
 
-# Run in production mode 
-python main.py &
+# Run in production mode with PYTHONPATH set
+PYTHONPATH=. python main.py &
 BACKEND_PID=$!
 
 # Check if backend started successfully
 echo -e "${BLUE}Waiting for backend to initialize...${NC}"
-sleep 2
+sleep 5
 if ! ps -p $BACKEND_PID > /dev/null; then
   echo -e "${RED}Backend server failed to start. Check logs for errors.${NC}"
   exit 1
@@ -109,7 +111,7 @@ if [ -d "frontend" ]; then
   cd ..
 
   # Check if frontend started successfully
-  sleep 2
+  sleep 5
   if ! ps -p $FRONTEND_PID > /dev/null; then
     echo -e "${YELLOW}Warning: Frontend server may have failed to start${NC}"
   else

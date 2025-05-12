@@ -506,8 +506,8 @@ class ConductorAgent(BaseAgent):
                 results = []
                 for i in range(len(responses)):
                     # Try to find score and reasoning for this response
-                    score_match = re.search(f'"response_index":\s*{i}.*?"score":\s*(\d+)', response_text)
-                    reasoning_match = re.search(f'"response_index":\s*{i}.*?"reasoning":\s*"([^"]+)"', response_text)
+                    score_match = re.search(rf'"response_index":\s*{i}.*?"score":\s*(\d+)', response_text)
+                    reasoning_match = re.search(rf'"response_index":\s*{i}.*?"reasoning":\s*"([^"]+)"', response_text)
                     
                     score = 0
                     reasoning = "No reasoning provided"
