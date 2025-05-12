@@ -32,7 +32,7 @@ sentence-transformers>=2.2.2
 ollama>=0.1.9
 
 # NLP and Data Processing
-spacy==3.7.2
+spacy>=3.7.2,<4.0.0
 numpy>=1.26.0,<2.0.0
 scipy>=1.11.0
 faiss-cpu>=1.7.4
@@ -62,7 +62,7 @@ farcaster
 
 # MCP Dependencies
 mcp>=0.3.0
-fastmcp>=2.0.0
+fastmcp>=2.3.1
 
 # Web utilities
 requests>=2.31.0
