@@ -41,6 +41,36 @@ else
   cd ..
 fi
 
+# Function to handle cleanup
+cleanup() {
+    echo -e "\n${BLUE}Shutting down services...${NC}"
+    
+    # Kill processes in reverse order of startup
+    if [ ! -z "$FRONTEND_PID" ]; then
+        echo -e "${BLUE}Stopping frontend...${NC}"
+        kill $FRONTEND_PID 2>/dev/null || true
+    fi
+    
+    if [ ! -z "$BACKEND_PID" ]; then
+        echo -e "${BLUE}Stopping backend...${NC}"
+        kill $BACKEND_PID 2>/dev/null || true
+    fi
+    
+    if [ ! -z "$MCP_PID" ]; then
+        echo -e "${BLUE}Stopping MCP server...${NC}"
+        kill $MCP_PID 2>/dev/null || true
+    fi
+    
+    # Wait for processes to finish
+    wait 2>/dev/null || true
+    
+    echo -e "${GREEN}All services stopped${NC}"
+    exit 0
+}
+
+# Set up trap for cleanup
+trap cleanup SIGINT SIGTERM EXIT
+
 # Start the MCP server
 echo -e "${GREEN}Starting MCP server on port $MCP_PORT${NC}"
 python run_mcp_server.py --port $MCP_PORT &
@@ -48,6 +78,11 @@ MCP_PID=$!
 
 # Wait for MCP server to start
 sleep 2
+if ! ps -p $MCP_PID > /dev/null; then
+  echo -e "${RED}MCP server failed to start. Check logs for errors.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}MCP server process started successfully.${NC}"
 
 # Start the backend server
 echo -e "${GREEN}Starting backend server on $API_HOST:$API_PORT${NC}"
@@ -57,11 +92,13 @@ python main.py &
 BACKEND_PID=$!
 
 # Check if backend started successfully
+echo -e "${BLUE}Waiting for backend to initialize...${NC}"
 sleep 2
 if ! ps -p $BACKEND_PID > /dev/null; then
-  echo -e "${RED}Backend server failed to start${NC}"
+  echo -e "${RED}Backend server failed to start. Check logs for errors.${NC}"
   exit 1
 fi
+echo -e "${GREEN}Backend server started successfully.${NC}"
 
 # Start the frontend development server (accessible on LAN)
 if [ -d "frontend" ]; then
@@ -97,6 +134,5 @@ fi
 echo -e "\n${BLUE}Note: Your frontend is now configured to connect to the backend at port 8000${NC}"
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 
-# Wait for Ctrl+C
-trap "kill $MCP_PID $BACKEND_PID $FRONTEND_PID; echo -e '\n${GREEN}Servers stopped${NC}'; exit" INT
+# Wait for all background processes
 wait 

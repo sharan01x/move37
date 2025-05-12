@@ -52,7 +52,7 @@ class ConversationToolFunctions:
         return conversation_history
     
     @staticmethod
-    def search_past_conversations(query: str, user_id: str, limit: int = 1) -> List[Dict[str, Any]]:
+    def search_for_past_conversations_with_query_similarity(query: str, user_id: str, limit: int = 1) -> List[Dict[str, Any]]:
         """
         Search for past conversations by query similarity.
         

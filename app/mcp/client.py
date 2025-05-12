@@ -630,4 +630,46 @@ class MCPClient:
                 # Add the tool call
                 tool_calls.append({"name": tool_name, "params": params})
         
-        return tool_calls 
+        return tool_calls
+        
+    def detect_tool_mentions(self, llm_response: str, tools: List[Any]) -> List[str]:
+        """
+        Detect mentions of tools in the LLM response, even when not properly formatted as tool calls.
+        
+        Args:
+            llm_response: The response from the LLM.
+            tools: List of available tools.
+            
+        Returns:
+            List of tool names that are mentioned in the response.
+        """
+        if not llm_response or not tools:
+            return []
+            
+        tool_names = [tool.name for tool in tools]
+        mentioned_tools = []
+        
+        # Common phrases that indicate tool usage intent
+        intent_phrases = [
+            "use the", "using the", "call the", "calling the", 
+            "need to use", "should use", "could use", "would use",
+            "tool:", "function:", "with the tool", "using tool"
+        ]
+        
+        # Check each tool name for mentions with intent phrases
+        for tool_name in tool_names:
+            # Direct mention (case insensitive)
+            if re.search(rf'\b{re.escape(tool_name)}\b', llm_response, re.IGNORECASE):
+                # Check if there's an intent phrase near the tool mention
+                for phrase in intent_phrases:
+                    # Look for intent phrase within 10 words of tool name
+                    pattern = rf'({re.escape(phrase)}\s+\w+(?:\s+\w+){{0,10}}\s+{re.escape(tool_name)})|({re.escape(tool_name)}\s+\w+(?:\s+\w+){{0,10}}\s+{re.escape(phrase)})'
+                    if re.search(pattern, llm_response, re.IGNORECASE):
+                        mentioned_tools.append(tool_name)
+                        break
+                
+                # If no intent phrase found, check for direct "toolName:" pattern
+                if tool_name not in mentioned_tools and re.search(rf'{re.escape(tool_name)}\s*:', llm_response, re.IGNORECASE):
+                    mentioned_tools.append(tool_name)
+                    
+        return mentioned_tools 

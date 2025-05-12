@@ -100,7 +100,7 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         
         try:
             # Get available tools and resources
-            self._send_status_message("Thinker is evaluating the available tools and resources...")
+            self._send_status_message("Evaluating the available tools and resources...")
             try:
                 tools = await self._mcp_client.get_available_tools()
                 resources = await self._mcp_client.get_available_resources()
@@ -127,19 +127,67 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
             user_prompt = f"\n\nUser ID: {user_id}\nCurrent Query: {query}\n\nPlease answer this query."
             
             # Analyze query with LLM to determine tools needed
-            self._send_status_message("Thinker is analyzing your query...")
-            try:
-                llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
-                clean_llm_response = self._clean_response(llm_response)
-                tool_calls = self._mcp_client.extract_tool_calls(llm_response, tools)
-                resource_uris_to_fetch = self._mcp_client.extract_resource_uris(llm_response)
-                
-            except Exception as e:
-                logger.error(f"Error processing LLM response: {str(e)}")
-                return self._format_error_response(
-                    f"I encountered an error while processing your query: {str(e)}",
-                    "There was an error analyzing your query."
-                )
+            self._send_status_message("Analyzing your query...")
+            
+            # Track whether we have already tried to refine the response
+            refinement_attempts = 0
+            max_refinement_attempts = 3
+            
+            while refinement_attempts <= max_refinement_attempts:
+                self._send_status_message("This needs a little more thought...")
+                try:
+                    # Get response from LLM
+                    llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
+                    clean_llm_response = self._clean_response(llm_response)
+                    
+                    # Extract proper tool calls
+                    tool_calls = self._mcp_client.extract_tool_calls(llm_response, tools)
+                    resource_uris_to_fetch = self._mcp_client.extract_resource_uris(llm_response)
+                    
+                    # If no structured tool calls found, check for tool mentions
+                    if not tool_calls:
+                        mentioned_tools = self._mcp_client.detect_tool_mentions(llm_response, tools)
+                        
+                        # If tools are mentioned but not properly called, refine the response
+                        if mentioned_tools and refinement_attempts < max_refinement_attempts:
+                            refinement_attempts += 1
+                            self._send_status_message(f"Refining the approach (attempt {refinement_attempts})...")
+                            
+                            # Create a refinement prompt
+                            tool_names_str = ", ".join([f"'{name}'" for name in mentioned_tools])
+                            refinement_prompt = f"""You mentioned using the tool(s): {tool_names_str}, but didn't format the tool call correctly.
+
+Please use the proper JSON format for tool calls:
+```json
+{{
+  "name": "tool_name",
+  "params": {{
+    "param1": "value1",
+    "param2": "value2"
+  }}
+}}
+```
+
+Or function call format: tool_name(param1="value1", param2="value2")
+
+Let me restate the query: {query}
+
+Please provide a proper tool call to answer this query."""
+                            
+                            # Update the user prompt for refinement
+                            user_prompt = refinement_prompt
+                            continue  # Try again with the refinement prompt
+                        # No tools mentioned or max refinements reached, proceed with direct response
+                    
+                    # Break out of the refinement loop if we have tool calls or max attempts reached
+                    break
+                    
+                except Exception as e:
+                    logger.error(f"Error processing LLM response: {str(e)}")
+                    return self._format_error_response(
+                        f"I encountered an error while processing your query: {str(e)}",
+                        "There was an error analyzing your query."
+                    )
             
             # Fetch any requested resources
             fetched_resources = {}
@@ -205,13 +253,21 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
             
             # If no tools are needed, return the direct response
             if not tool_calls:
+                # Even after refinement, if there are still tool mentions but no proper calls,
+                # add a warning to the response
+                mentioned_tools = self._mcp_client.detect_tool_mentions(llm_response, tools)
+                warning = ""
+                if mentioned_tools:
+                    tool_names = ", ".join(mentioned_tools)
+                    warning = f"\n\nNote: I tried to use tools ({tool_names}) but encountered an issue with the tool call format. I've provided the best answer I can without using these tools."
+                
                 response = {
-                    "answer": clean_llm_response,
+                    "answer": clean_llm_response + warning if warning else clean_llm_response,
                     "reasoning": "I answered this query directly without using tools.",
                     "agent_name": self.name
                 }
                 # Update conversation context with this exchange
-                self._add_to_conversation_context(query, clean_llm_response)
+                self._add_to_conversation_context(query, response["answer"])
                 return response
             
             # Execute tool calls and collect results
@@ -220,7 +276,7 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                 tool_name = tool_call.get("name")
                 params = tool_call.get("params", {})
                 
-                self._send_status_message(f"Thinker is using {tool_name}...")
+                self._send_status_message(f"Using {tool_name}...")
                 
                 try:
                     # Get the tool and prepare parameters
@@ -346,12 +402,16 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         """
         # If we have tool results, we need to format a final answer using them
         if tool_results:
-            self._send_status_message("Thinker is formulating final answer...")
+            self._send_status_message("Formulating final answer...")
             
             # Prepare a prompt for the LLM to interpret tool results
-            system_prompt = f"""You are the Thinker agent (also referred to as "Agent Thinker"), tasked with providing a clear, concise answer based on tool results.
-Given the original user query and results from tools, provide a complete and helpful answer.
-Your response should be clear, factual, and directly address the user's question.
+            system_prompt = f"""You are providing a final, concise answer to a user's question based on tool results.
+Your response should be clear, factual, and directly address the question. 
+
+IMPORTANT:
+1. Be conversational and direct, starting with the answer itself
+2. If there is information regarding the process that is necessary to find the final answer, you don't need to include it in your response.
+
 
 {self._context_handling_instructions}
 """
@@ -364,10 +424,14 @@ Your response should be clear, factual, and directly address the user's question
 Tool results:
 {tool_results_str}
 
-Based on these results, provide a clear, helpful answer to the original query.
+Provide a clear, direct answer that addresses the query without mentioning the tools or process used.
 """
             
             try:
+                print(f"\n\nSystem prompt:\n--------------------------------\n{system_prompt}")
+                print(f"\n\nUser prompt:\n--------------------------------\n{user_prompt}")
+
+
                 # Get the final answer from the LLM
                 final_answer = self._call_llm(system_prompt, user_prompt)
                 
@@ -476,31 +540,8 @@ Based on these results, provide a clear, helpful answer to the original query.
                 
                 # Add example as formatted text to the examples string
                 tool_examples_text += f"\nExample for {tool_name}:\n```json\n{json_example}\n```\nOR as a function call: `{func_example}`\n"
-        
-        # Build the user preferences block
-        user_preference_information = "USER PREFERENCES:\n\n"
-        try:
-            user_preference_information += get_user_preferences(user_id)
-        except Exception as e:
-            logger.error(f"Error fetching user preferences: {e}")
-            user_preference_information = ""
+                tool_examples_text += f"\nIt is CRITICAL to follow the exact format of the examples above when using the tool or else, the tool calls will fail."
 
-        # Build the set of user facts that are relevant to the user's query
-        user_facts = "FACTS ABOUT THE USER RELEVANT TO THE QUERY:\n\n"
-        try:
-            user_facts += get_user_facts_relevant_to_query(user_id, query)
-        except Exception as e:
-            logger.error(f"Error fetching user facts: {e}")
-            user_facts = ""
-        
-        # Build the user_id guidance
-        user_id_guidance = ""
-        if tools_requiring_user_id:
-            if len(tools_requiring_user_id) == len(tools):
-                user_id_guidance = f"When using any tool, ALWAYS include the user_id parameter set to \"{user_id}\"."
-            else:
-                tool_list = ", ".join(tools_requiring_user_id)
-                user_id_guidance = f"When using the following tools: {tool_list}, ALWAYS include the user_id parameter set to \"{user_id}\"."
         
         # Create information about available resources
         resource_information = ""
@@ -549,6 +590,32 @@ TO USE RESOURCES:
 4. The answer you are looking for may not be in the resource, but it may still inform your response.
 """
 
+        # Build the user preferences block
+        user_preference_information = "USER PREFERENCES:\n\n"
+        try:
+            user_preference_information += get_user_preferences(user_id)
+        except Exception as e:
+            logger.error(f"Error fetching user preferences: {e}")
+            user_preference_information = ""
+
+        # Build the set of user facts that are relevant to the user's query
+        user_facts = "FACTS ABOUT THE USER RELEVANT TO THE QUERY:\n\n"
+        try:
+            user_facts += get_user_facts_relevant_to_query(user_id, query)
+        except Exception as e:
+            logger.error(f"Error fetching user facts: {e}")
+            user_facts = ""
+        
+        # Build the user_id guidance
+        user_id_guidance = ""
+        if tools_requiring_user_id:
+            if len(tools_requiring_user_id) == len(tools):
+                user_id_guidance = f"When using any tool, ALWAYS include the user_id parameter set to \"{user_id}\"."
+            else:
+                tool_list = ", ".join(tools_requiring_user_id)
+                user_id_guidance = f"When using the following tools: {tool_list}, ALWAYS include the user_id parameter set to \"{user_id}\"."
+        
+
         # Add context entities section if available
         context_section = ""
         if context_entities and context_entities is not False:
@@ -589,9 +656,6 @@ INSTRUCTIONS FOR ANSWERING USER QUERIES:
 {context_section}
 --------------------------------
 """
-
-        # Print the prompt for debugging
-        print(f"Generated system prompt:\n\n{system_prompt}\n\n")
 
         return system_prompt
     

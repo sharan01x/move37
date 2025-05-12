@@ -73,9 +73,9 @@ def create_server():
             return {"error": str(e)}
     
     @mcp.tool()
-    def search_past_conversations(query: str, user_id: str, limit: int = 1):
+    def search_for_past_conversations_with_query_similarity(query: str, user_id: str, limit: int = 1):
         """
-        Search for past conversations by to find anything relevant to the search parameters using a semantic search.
+        Search through the past conversations to find anything semantically similar to a query. 
         
         Args:
             query: Query string to search for
@@ -87,10 +87,10 @@ def create_server():
         """
         try:
             if not user_id:
-                logger.error("No user_id provided for search_past_conversations")
+                logger.error("No user_id provided for find_information_in_past_conversations")
                 raise ValueError("user_id is required and cannot be empty")
                 
-            results = ConversationToolFunctions.search_past_conversations(query=query, user_id=user_id, limit=limit)
+            results = ConversationToolFunctions.search_for_past_conversations_with_query_similarity(query=query, user_id=user_id, limit=limit)
             return results
         except Exception as e:
             logger.error(f"Error searching conversations: {e}")
