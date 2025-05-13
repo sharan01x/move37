@@ -68,17 +68,29 @@ git clone https://github.com/sharan01x/move37.git
 cd move37
 ```
 
-2. Make the starting shell script executable:
+2. Make the setup, upgrade and start shell scripts executable (Mac):
 ```bash
+chmod +x setup.sh
+chmod +x upgrade.sh
 chmod +x start.sh
 ```
 
-3. Now launch the application using:
+3. If it's your first time using this application, run the setup script to install everything required:
+```bash
+./setup.sh
+```
+
+But if you've been using the application and want to upgrade your app to the latest published version, run the below command:
+```bash
+./upgrade.sh
+```
+Don't worry this won't overwrite your data, but it may change your user name to the "default_user", so just change it back to the one you set in the user profile panel and your data will show up again.
+
+
+4. Now, when you want to launch the application, do:
 ```bash
 ./start.sh
 ```
-
-When it runs for the first time, it should run all the installation steps necessary to get your application working. If this doesn't result in a clean start up of the application post that, use the following steps to install it manually first and then use the start.sh script to launch your application post that.
 
 ---
 

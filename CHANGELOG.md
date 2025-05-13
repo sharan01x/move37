@@ -1,5 +1,13 @@
 # Changelog
 
+## 12 May 2025
+* Added a new Thinker app that works using MCP
+- It replicates the existing functionality of First Responder, Persephone, Librarian and Number Ninja agents. 
+- Since it relies on a thinking model, it runs slower
+- But the answers are typically good. But if you want faster answers, you may still want to use the specialised agents.
+
+* Made the installation easier, at least on a Mac.
+
 ## 2 May 2025
 
 * Updated the Librarian and Files apps. Both of them work pretty well now. The Librarian is able to maintain context of which file is being discussed and switch contexts only when required.
