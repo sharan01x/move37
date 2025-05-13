@@ -11,7 +11,9 @@ import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from langchain_community.tools import Tool
+from crewai.tools import BaseTool
 import numpy as np
+from pydantic import Field
 
 from app.agents.base_agent import BaseAgent
 from app.utils.chunking import ChunkingUtil
@@ -29,6 +31,44 @@ class DateTimeEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+# Create custom BaseTool implementations
+class SaveRecordTool(BaseTool):
+    name: str = "save_record"
+    description: str = "Save a record to disk"
+    agent_instance: Any = Field(default=None, exclude=True)
+    
+    def __init__(self, agent_instance=None, **data):
+        super().__init__(**data)
+        self.agent_instance = agent_instance
+    
+    def _run(self, user_id: str, data_package: Dict[str, Any], transcription: Optional[str] = None) -> Dict[str, Any]:
+        return self.agent_instance._save_record(user_id, data_package, transcription)
+
+class ChunkTextTool(BaseTool):
+    name: str = "chunk_text"
+    description: str = "Split text into chunks for storage"
+    agent_instance: Any = Field(default=None, exclude=True)
+    
+    def __init__(self, agent_instance=None, **data):
+        super().__init__(**data)
+        self.agent_instance = agent_instance
+    
+    def _run(self, text: str, chunk_size: int = 500, overlap: int = 100) -> List[Dict[str, Any]]:
+        return self.agent_instance._chunk_text(text, chunk_size, overlap)
+
+class StoreChunkTool(BaseTool):
+    name: str = "store_chunk"
+    description: str = "Store a text chunk in the vector database"
+    agent_instance: Any = Field(default=None, exclude=True)
+    
+    def __init__(self, agent_instance=None, **data):
+        super().__init__(**data)
+        self.agent_instance = agent_instance
+    
+    def _run(self, chunk: Dict[str, Any], record_id: str, user_id: str) -> Dict[str, Any]:
+        return self.agent_instance._store_chunk(chunk, record_id, user_id)
+
+
 class RecorderAgent(BaseAgent):
     """Recorder agent for the Move 37 application."""
     
@@ -37,25 +77,7 @@ class RecorderAgent(BaseAgent):
         # Initialize vector_db as None - it will be initialized per user
         self.vector_db = None
         
-        # Define tools
-        save_record_tool = Tool(
-            name="save_record",
-            func=self._save_record,
-            description="Save a record to disk"
-        )
-        
-        chunk_text_tool = Tool(
-            name="chunk_text",
-            func=self._chunk_text,
-            description="Split text into chunks for storage"
-        )
-        
-        store_chunk_tool = Tool(
-            name="store_chunk",
-            func=self._store_chunk,
-            description="Store a text chunk in the vector database"
-        )
-        
+        # Define tools after the agent methods are defined
         super().__init__(
             name="Recorder",
             description="I am an expert at recording and storing data. "
@@ -63,7 +85,11 @@ class RecorderAgent(BaseAgent):
                         "and store them in a vector database for easy retrieval.",
             role="Data Recorder",
             goal="Efficiently record and store data for future retrieval",
-            tools=[save_record_tool, chunk_text_tool, store_chunk_tool],
+            tools=[
+                SaveRecordTool(self),
+                ChunkTextTool(self),
+                StoreChunkTool(self)
+            ],
             llm_provider=RECORDER_LLM_PROVIDER,
             llm_model=RECORDER_LLM_MODEL
         )
@@ -240,21 +266,15 @@ class RecorderAgent(BaseAgent):
         Returns:
             Record ID.
         """
-        # Initialize a user-specific vector database
-        self._ensure_vector_db(user_id)
-        
-        # Create a data package
+        # Create a minimal data package with just the text
         data_package = {
-            "user_id": user_id,
-            "operation_type": "Record",
-            "data_type": "text",
             "text_content": text,
-            "timestamp": datetime.now(),
-            "metadata": metadata or {},
-            "source": source
+            "source": source,
+            "timestamp": datetime.now().isoformat(),
+            "metadata": metadata or {}
         }
         
-        # Record the data package
-        record_result = self.record(user_id, data_package, text)
+        # Record the text
+        result = self.record(user_id, data_package, transcription=text)
         
-        return record_result["record_id"]
+        return result["record_id"]

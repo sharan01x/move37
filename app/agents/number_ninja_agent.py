@@ -10,12 +10,20 @@ from typing import Dict, Any, Optional, Union, Callable
 from crewai import Task
 import re
 import asyncio
+from crewai.tools import BaseTool
 
 from app.agents.base_agent import BaseAgent
 from app.core.config import NUMBER_NINJA_LLM_PROVIDER, NUMBER_NINJA_LLM_MODEL
 from app.utils.llm_utils import parse_json_response, extract_json_from_llm_response
 from app.tools.math_tool import math_tool
 
+# Create a properly wrapped math tool
+class MathToolWrapper(BaseTool):
+    name: str = "math_tool"
+    description: str = "Solve mathematical problems"
+    
+    def _run(self, query: str) -> Dict[str, Any]:
+        return math_tool.run(query)
 
 class NumberNinjaAgent(BaseAgent):
     """
@@ -29,78 +37,110 @@ class NumberNinjaAgent(BaseAgent):
             description="I specialize in solving mathematical problems and equations.",
             role="Mathematics Expert",
             goal="Provide accurate solutions to mathematical problems and equations.",
-            tools=[math_tool], 
+            tools=[MathToolWrapper()], 
             llm_provider=NUMBER_NINJA_LLM_PROVIDER,
             llm_model=NUMBER_NINJA_LLM_MODEL
         )
     
-    async def answer_query_async(self, query: str, user_id: str, message_callback: Optional[Callable] = None) -> Union[str, Dict[str, Any]]:
+    async def answer_query_async(self, query: str, user_id: str = None, message_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """
-        Answer a query, determining if it's mathematics-related and providing a solution if it is.
+        Answer a math query asynchronously.
         
         Args:
-            query: Query to answer.
-            user_id: Optional user ID.
-            message_callback: Optional callback function to send interim messages during processing.
+            query: The query to answer.
+            user_id: The ID of the user making the query.
+            message_callback: Optional callback function for sending messages.
             
         Returns:
-            JSON formatted response with solution and explanation.
+            Dictionary containing the answer and whether it is a math tool query.
+        """
+        # Send initial status
+        if message_callback:
+            await message_callback(f"Number Ninja processing mathematical query...")
+            
+        # Check if it's a math query that can be handled with the math tool
+        math_query_result = await self._process_math_query(query)
+        
+        # If it is a math tool query, return the result
+        if math_query_result and math_query_result.get("is_math_tool_query"):
+            response = math_query_result.get("answer", "I couldn't solve this math problem.")
+            
+            # Send the answer
+            if message_callback:
+                await message_callback(f"Number Ninja calculated result: {response}")
+                
+            return {
+                "answer": response,
+                "agent_name": "number_ninja",
+                "display_name": "Number Ninja",
+                "response_score": None,
+                "is_math_tool_query": True
+            }
+        
+        # If we get here, it's not a math tool query or the math tool couldn't solve it
+        try:
+            # Create a system prompt for more detailed math-focused instructions
+            system_prompt = """
+            You are Number Ninja, an expert mathematics agent. 
+            You specialize in solving mathematical problems and providing clear, step-by-step solutions.
+            You should:
+            1. Properly identify the mathematical concepts involved in the question
+            2. Show your work step-by-step when solving problems
+            3. Double-check your calculations for accuracy
+            4. Provide the final answer clearly
+            5. Explain relevant mathematical concepts when appropriate
+            
+            If you cannot solve the problem or it's not a mathematical question, acknowledge your limitations.
+            """
+            
+            # Get response from LLM with the specialized math prompt
+            direct_response = await self.queryLLM(
+                user_prompt=query,
+                system_prompt=system_prompt
+            )
+            
+            # Send the answer
+            if message_callback:
+                await message_callback(f"Number Ninja: {direct_response}")
+                
+            return {
+                "answer": direct_response,
+                "agent_name": "number_ninja",
+                "display_name": "Number Ninja",
+                "response_score": None,
+                "is_math_tool_query": False  # Normal response, not a math tool query
+            }
+        except Exception as e:
+            error_message = f"Error answering query: {str(e)}"
+            print(error_message)
+            
+            if message_callback:
+                await message_callback(f"Number Ninja Error: {error_message}")
+                
+            return {
+                "answer": "I encountered an error while trying to solve your mathematical problem.",
+                "agent_name": "number_ninja",
+                "display_name": "Number Ninja",
+                "response_score": None,
+                "is_math_tool_query": False
+            }
+    
+    async def _process_math_query(self, query: str) -> Dict[str, Any]:
+        """
+        Process a potential math query using the math tool.
+        
+        Args:
+            query: The query to process.
+            
+        Returns:
+            The math tool result or None if not a math query.
         """
         try:
-            # Set message callback
-            self.set_message_callback(message_callback)
+            # Use the math_tool to process the query
+            math_tool_wrapper = MathToolWrapper()
+            result = math_tool_wrapper._run(query)
             
-            # Send status message
-            await self.send_message("Number Ninja is analyzing if this question can be solved with our math tool...")
-            
-            # First try to solve it using our Math Tool for faster calculations
-            math_result = math_tool.func(query)
-            
-            # If it's a math query and we got a valid answer with our math tool, return immediately
-            if math_result.get("is_math_tool_query", False) and math_result.get("answer") is not None and not math_result.get("requires_llm", False):
-                await self.send_message(f"Number Ninja has found the answer: {math_result.get('answer')}")
-                return self.format_response(
-                    math_result.get("answer"),
-                    response_score=100 if not math_result.get("requires_llm") else None,
-                    is_math_tool_query=True
-                )
-            
-            # If it's not a math query at all, return that result
-            if not math_result.get("is_math_tool_query", False):
-                return self.format_response(math_result.get("answer", "I don't know"))
-            
-            # For more complex math problems that require the LLM
-            await self.send_message("Number Ninja is processing a mathematics problem that requires language processing...")
-            
-            # Build the description with context if available
-            description = f"""
-                User Query: {query}
-                ---------------
-                INSTRUCTIONS:
-                1. For questions about mathematics, provide direct factual answers based on your knowledge.
-                2. If you cannot answer the query, say "I don't know."
-                Always provide a direct, factual response to the user query without disclaimers or notes about your capabilities.
-            """
-            task = Task(
-                description=description,
-                expected_output="A response with the solution to the mathematics problem",
-                agent=self.agent
-            )
-            
-            # Execute the task with the agent
-            loop = asyncio.get_event_loop()
-            raw_response = await loop.run_in_executor(None, self.agent.execute_task, task)
-            
-            return self.format_response(
-                raw_response.strip() if raw_response else "I don't know",
-                response_score=1.0,
-                is_math_tool_query=True
-            )
-            
+            return result
         except Exception as e:
-            print(f"Error in Number Ninja agent: {e}")
-            return self.format_response(
-                "I don't know",
-                response_score=0.0,
-                is_math_tool_query=True
-            )
+            print(f"Math tool error: {str(e)}")
+            return None

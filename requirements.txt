@@ -26,7 +26,11 @@ httpx==0.28.1
 
 # LangChain Ecosystem (Core Components)
 langchain==0.3.25
+langchain-community==0.3.24
 sentence-transformers==4.1.0
+
+# AI Agents and Tools
+crewai==0.119.0
 
 # LLM Integration
 ollama==0.4.8
