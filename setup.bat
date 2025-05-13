@@ -31,16 +31,26 @@ echo Upgrading pip...
 python -m pip install --upgrade pip
 
 :: Install requirements
-echo Installing dependencies...
-pip install -r requirements.txt
-
-:: Check if installation was successful
-if errorlevel 1 (
-    echo Error installing dependencies. Please check the error messages above.
-    exit /b 1
+echo Installing dependencies one by one...
+if exist requirements.txt (
+    for /f "usebackq delims=" %%p in ("requirements.txt") do (
+        set "package=%%p"
+        REM Skip empty lines and comments
+        if not "!package!"=="" if not "!package:~0,1!"=="#" (
+            echo Installing !package!...
+            python -m pip install "!package!"
+            if errorlevel 1 (
+                echo Error installing !package!. Skipping...
+            ) else (
+                echo !package! installed successfully!
+            )
+        )
+    )
 ) else (
-    echo Dependencies installed successfully!
+    echo requirements.txt not found. Skipping dependency installation.
 )
+
+echo Finished attempting to install dependencies.
 
 :: Download spacy model
 echo Downloading spacy model...
@@ -55,4 +65,4 @@ echo Setup completed successfully!
 echo To activate the virtual environment, run:
 echo venv\Scripts\activate.bat
 
-endlocal 
+endlocal
