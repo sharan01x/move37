@@ -1,8 +1,10 @@
 .DS_Store
 /data/
 /venv/
+/.venv/ # Added to ignore the new uv virtual environment directory
 /frontend/node_modules/
 /tests/
+~/.config/browseruse/profiles/default
 
 # Output
 .output

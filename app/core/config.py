@@ -122,3 +122,7 @@ ALLOWED_FILE_TYPES = [
 # MCP Settings
 MCP_SERVER_HOST = os.environ.get("MCP_SERVER_HOST", "localhost")
 MCP_SERVER_PORT = int(os.environ.get("MCP_SERVER_PORT", 7777))
+
+# Browser settings
+BROWSER_LLM_MODEL = "qwen2.5:latest"
+BROWSER_BINARY_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"  # Path to the browser binary

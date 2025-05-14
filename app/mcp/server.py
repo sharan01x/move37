@@ -13,6 +13,7 @@ from fastmcp import FastMCP
 from app.tools.math_tool import MathToolFunctions
 from app.tools.conversation_tool import ConversationToolFunctions
 from app.tools.file_search_tool import FileSearchToolFunctions
+from app.tools.browser_tool import run_browser_task
 from app.core.config import MCP_SERVER_PORT, MCP_SERVER_HOST
 
 # Set up logging
@@ -27,6 +28,27 @@ def create_server():
     # Create MCP server using the high-level FastMCP API
     mcp = FastMCP("Move37 MCP Server")
     
+    @mcp.tool()
+    async def execute_browser_task(task: str, user_id: str):
+        """
+        Use this tool to use a web browser to perform tasks on the web for real-time information or actions.
+        
+        Args:
+            task: The task description for the browser to execute.
+            user_id: User ID (currently not used by the browser tool directly, but good for consistency).
+            
+        Returns:
+            The result of the browser task, or an error message.
+        """
+        logger.info(f"MCP Server received browser task: '{task}' for user_id: {user_id}")
+        try:
+            # Pass both task and user_id to run_browser_task
+            result = await run_browser_task(task=task, user_id=user_id)
+            return result
+        except Exception as e:
+            logger.error(f"Error executing browser task via MCP: {e}", exc_info=True)
+            return {"error": f"MCP Server Error: Failed to execute browser task. {str(e)}"}
+
     @mcp.tool()
     def math_calculator(query: str):
         """
@@ -191,4 +213,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main() 
+    main()

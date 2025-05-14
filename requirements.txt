@@ -10,8 +10,8 @@
 # 3. If any package fails, try installing it separately:
 #    pip install --only-binary :all: <package-name>
 #
-# 4. Download the Spacy model:
-#    python -m spacy download en_core_web_sm
+# 4. Download the Spacy model (using uv, after activating the .venv):
+#    uv pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz#egg=en_core_web_sm
 #
 # Note: If faiss-cpu installation fails, try:
 # pip install faiss-cpu --no-build-isolation
@@ -31,9 +31,11 @@ sentence-transformers==4.1.0
 
 # AI Agents and Tools
 crewai==0.119.0
+browser-use==0.1.47  # Specific version that works with browser_binary_path
 
 # LLM Integration
 ollama==0.4.8
+langchain-ollama
 
 # NLP and Data Processing
 numpy==1.26.4
@@ -65,6 +67,7 @@ mastodon.py==2.0.1
 # MCP Dependencies
 mcp==1.8.1
 fastmcp==2.3.3
+pydantic-settings
 
 # Web utilities
 requests==2.32.3

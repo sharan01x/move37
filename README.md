@@ -60,7 +60,8 @@ This project is entirely free for personal use but is covered by a license to en
 
 ## Quick Installation
 
-Prerequisites -- you need Python 3.11 and Ollama installed on your local machine with Qwen2.5, mxbai-embed-large and phi4-mini installed. 
+Prerequisites -- you need Python 3.12 and Ollama installed on your local machine with Qwen2.5, mxbai-embed-large and phi4-mini installed. 
+You also need to have `uv` installed. Visit https://github.com/astral-sh/uv for installation instructions.
 
 1. Clone the repository and then go into that directory:
 ```bash
@@ -70,14 +71,14 @@ cd move37
 
 2. Make the setup, upgrade and start shell scripts executable (Mac):
 ```bash
-chmod +x setup.sh
+chmod +x setup.sh # Changed from setup_uv.sh
 chmod +x upgrade.sh
 chmod +x start.sh
 ```
 
 3. If it's your first time using this application, run the setup script to install everything required:
 ```bash
-./setup.sh
+./setup.sh # Changed from setup_uv.sh
 ```
 
 But if you've been using the application and want to upgrade your app to the latest published version, run the below command:
@@ -96,35 +97,37 @@ Don't worry this won't overwrite your data, but it may change your user name to 
 
 ## Manual Install (If Quick Install Doesn't Work)
 
-1. Make sure you have Python 3.11 installed on your system. If you don't have python, go get it from their [website](https://www.python.org/downloads/release/python-31112/)
+1. Make sure you have Python 3.12 installed on your system. If you don't have python, go get it from their [website](https://www.python.org/downloads/)
 
-2. Install Ollama and Qwen2.5, mxbai-embed-large and phi4-mini AI models. Go to their website to [begin](https://ollama.com).
+2. Install `uv` from https://github.com/astral-sh/uv.
 
-3. Clone the Move37 repository and then go into that directory:
+3. Install Ollama and Qwen2.5, mxbai-embed-large and phi4-mini AI models. Go to their website to [begin](https://ollama.com).
+
+4. Clone the Move37 repository and then go into that directory:
 ```bash
 git clone https://github.com/sharan01x/move37.git
 cd move37
 ```
 
-4. Create a virtual environment and install dependencies:
+5. Create a virtual environment and install dependencies:
 ```bash
-python3.11 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 You will need to install some depencies manually post that using the following command in the terminal:
 
 ```bash
-python3.11 -m spacy download en_core_web_sm
+python3.12 -m spacy download en_core_web_sm
 ```
 If you run into issues, look at the instructions within requirements.txt for alternative ways to fix the install process.
 
-5. Setup the launch script for easy launches in the future:
+6. Setup the launch script for easy launches in the future:
 ```bash
 chmod +x start.sh
 ```
 
-6. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
+7. [OPTIONAL] For social media posting using Butterfly, you need the following two things:
 
 a. A folder with the UI elements that need to be clicked to be able to post using the GUI. This is available for download from https://www.redd.in/resources.html.
 
@@ -216,7 +219,7 @@ b. A file with the social media account details at data/social_media/accounts.js
 ]
 ```
 
-7. Launch the application in the future simply by using the following command:
+8. Launch the application in the future simply by using the following command:
 ```bash
 ./start.sh
 ```

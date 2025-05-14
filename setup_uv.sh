@@ -30,14 +30,6 @@ uv venv .venv --python=python3.11
 echo -e "${YELLOW}Activating virtual environment...${NC}"
 source .venv/bin/activate
 
-# Ensure pip, setuptools, and wheel are installed in the venv by uv
-echo -e "${YELLOW}Ensuring pip, setuptools, and wheel are installed by uv...${NC}"
-uv pip install pip setuptools wheel
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Failed to install pip/setuptools/wheel with uv. Please check uv installation and network. Exiting.${NC}"
-    exit 1
-fi
-
 # Install requirements using uv
 echo -e "${YELLOW}Installing dependencies with uv...${NC}"
 if [ -f requirements.txt ]; then
@@ -57,23 +49,14 @@ else
     echo -e "${RED}requirements.txt not found. Skipping dependency installation.${NC}"
 fi
 
-# Download spacy model using uv pip install from URL
-echo -e "${YELLOW}Downloading Spacy model (en_core_web_sm v3.7.1) using uv pip install from URL...${NC}"
-uv pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz#egg=en_core_web_sm
+# Download spacy model
+echo -e "${YELLOW}Downloading Spacy model (en_core_web_sm)...${NC}"
+python -m spacy download en_core_web_sm
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Spacy model downloaded successfully!${NC}"
 else
-    echo -e "${RED}Error downloading Spacy model. Please try manually: uv pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz#egg=en_core_web_sm${NC}"
-fi
-
-# Install Playwright browser binaries (needed for browser_use library)
-echo -e "${YELLOW}Installing Playwright browser binaries...${NC}"
-python -m playwright install
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Playwright browser binaries installed successfully!${NC}"
-else
-    echo -e "${RED}Error installing Playwright browser binaries. Please try manually: python -m playwright install${NC}"
+    echo -e "${RED}Error downloading Spacy model. Please try manually: python -m spacy download en_core_web_sm${NC}"
 fi
 
 echo -e "${GREEN}Move37 setup with uv completed!${NC}"

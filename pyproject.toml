@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "move37"
+version = "0.1.0"
+description = "Move37 project"
+requires-python = ">=3.11"
+readme = "README.md"
+license = "MIT"
+
+# Dependencies are managed through requirements.txt for backward compatibility
+# but can also be specified here for modern tooling
+
+# Define packages explicitly to avoid auto-discovery problems
+[tool.setuptools]
+packages = ["app"]
+# Exclude non-package directories from discovery
+package-dir = {"" = "."}
+
+[tool.uv]
+required-version = ">=0.7.3"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"] 
