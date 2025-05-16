@@ -8,21 +8,23 @@ httpx==0.28.1
 # LangChain Ecosystem (Core Components)
 langchain==0.3.22
 langchain-community==0.3.20
+langchain-core==0.3.49
+langchain-ollama==0.3.0
 sentence-transformers==4.1.0
 
 # AI Agents and Tools
 crewai==0.120.1
-browser-use==0.1.47  # Specific version that works with browser_binary_path
+browser-use==0.1.47
 
 # LLM Integration
 ollama==0.4.8
-langchain-ollama==0.3.0
 
 # NLP and Data Processing
 numpy==1.26.4
 scipy==1.15.3
 faiss-cpu==1.11.0
-spacy==3.8.5
+spacy==3.7.5
+wrapt==1.17.2
 
 # Testing
 pytest==8.3.5
@@ -46,7 +48,6 @@ tweepy==4.15.0
 mastodon.py==2.0.1
 
 # MCP Dependencies
-mcp==1.8.1
 fastmcp==2.3.4
 pydantic-settings==2.9.1
 

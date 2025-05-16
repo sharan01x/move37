@@ -102,8 +102,10 @@ Don't worry this won't overwrite your data, but it may change your user name to 
 ```bash
 ./start.sh
 ```
-
+Point your browser to the address shown in the terminal, or to http://localhost:3737 if you're using it locally, and you're good to go!
 ---
+
+
 
 ## Manual Install (If Quick Install Doesn't Work)
 
@@ -233,4 +235,4 @@ b. A file with the social media account details at data/social_media/accounts.js
 ```bash
 ./start.sh
 ```
-The first time this runs, some frotnend dependencies will be installed, but all the future runs will be faster and immediately run the two servers to get your application to run.
+Point your browser to the address shown in the terminal, or to http://localhost:3737 if you're using it locally, and you're good to go!

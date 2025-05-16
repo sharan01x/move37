@@ -196,7 +196,7 @@ class ConversationDBInterface(VectorDBInterface):
         if not user_id:
             logger.warning("No user ID provided for conversation history")
             return "No user ID provided for conversation history."
-            
+        
         # Dictionary to store all conversations
         all_conversations = []
         

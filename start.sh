@@ -19,33 +19,14 @@ echo -e "${BLUE}Starting Move37 Production Environment${NC}"
 export API_PORT=8000
 export API_HOST="localhost"  # Keep backend local-only
 export MCP_PORT=7777
-export FRONTEND_PORT=37  # Set frontend port to 37
+export FRONTEND_PORT=3737  # Set frontend port to 3737
+
+# Pass API_PORT to frontend
+export VITE_API_PORT=$API_PORT
 
 # Activate virtual environment if it exists
-if [ -d "venv" ]; then
-  source venv/bin/activate
-fi
-
-# Check if requirements are installed
-if [ -f "requirements.txt" ]; then
-  echo -e "${BLUE}Checking for dependencies...${NC}"
-  pip install -r requirements.txt --quiet || echo -e "${YELLOW}Some dependencies could not be installed, continuing anyway...${NC}"
-fi
-
-# Install MCP dependencies if not already installed
-echo -e "${BLUE}Checking/installing MCP dependencies...${NC}"
-# Don't fail if dependencies can't be installed
-pip install mcp fastmcp --quiet || echo -e "${YELLOW}MCP dependencies could not be installed, continuing anyway...${NC}"
-
-# Check if frontend directory exists
-if [ ! -d "frontend" ]; then
-  echo -e "${YELLOW}Warning: 'frontend' directory not found${NC}"
-else
-  # Force rebuilding of frontend to apply any changes
-  echo -e "${BLUE}Building frontend...${NC}"
-  cd frontend
-  npm install
-  cd ..
+if [ -d ".venv" ]; then
+  source .venv/bin/activate
 fi
 
 # Function to handle cleanup
@@ -54,17 +35,14 @@ cleanup() {
     
     # Kill processes in reverse order of startup
     if [ ! -z "$FRONTEND_PID" ]; then
-        echo -e "${BLUE}Stopping frontend...${NC}"
         kill $FRONTEND_PID 2>/dev/null || true
     fi
     
     if [ ! -z "$BACKEND_PID" ]; then
-        echo -e "${BLUE}Stopping backend...${NC}"
         kill $BACKEND_PID 2>/dev/null || true
     fi
     
     if [ ! -z "$MCP_PID" ]; then
-        echo -e "${BLUE}Stopping MCP server...${NC}"
         kill $MCP_PID 2>/dev/null || true
     fi
     
@@ -78,10 +56,8 @@ cleanup() {
 # Set up trap for cleanup
 trap cleanup SIGINT SIGTERM EXIT
 
-# Start the MCP server - UPDATED to use the correct path
-echo -e "${GREEN}Starting MCP server on port $MCP_PORT${NC}"
-# Use PYTHONPATH to ensure modules are found correctly
-PYTHONPATH=. python app/mcp/server.py --port $MCP_PORT --host localhost --transport sse &
+# Start the MCP server
+PYTHONPATH=. python app/mcp/server.py --port $MCP_PORT --host localhost --transport sse > /dev/null 2>&1 &
 MCP_PID=$!
 
 # Wait for MCP server to start
@@ -90,58 +66,37 @@ if ! ps -p $MCP_PID > /dev/null; then
   echo -e "${RED}MCP server failed to start. Check logs for errors.${NC}"
   exit 1
 fi
-echo -e "${GREEN}MCP server process started successfully.${NC}"
 
 # Start the backend server
-echo -e "${GREEN}Starting backend server on $API_HOST:$API_PORT${NC}"
-
-# Run in production mode with PYTHONPATH set
-PYTHONPATH=. python main.py &
+PYTHONPATH=. python main.py > /dev/null 2>&1 &
 BACKEND_PID=$!
 
 # Check if backend started successfully
-echo -e "${BLUE}Waiting for backend to initialize...${NC}"
 sleep 5
 if ! ps -p $BACKEND_PID > /dev/null; then
   echo -e "${RED}Backend server failed to start. Check logs for errors.${NC}"
   exit 1
 fi
-echo -e "${GREEN}Backend server started successfully.${NC}"
 
-# Start the frontend development server (accessible on LAN)
+# Start the frontend development server
 if [ -d "frontend" ]; then
-  echo -e "${GREEN}Starting frontend server accessible on LAN${NC}"
   cd frontend
-  npm run dev -- --host 0.0.0.0 --port $FRONTEND_PORT &
+  npm run dev -- --host 0.0.0.0 --port $FRONTEND_PORT > /dev/null 2>&1 &
   FRONTEND_PID=$!
   cd ..
-
-  # Check if frontend started successfully
-  sleep 5
-  if ! ps -p $FRONTEND_PID > /dev/null; then
-    echo -e "${YELLOW}Warning: Frontend server may have failed to start${NC}"
-  else
-    echo -e "${GREEN}Frontend server running (accessible on your local network)${NC}"
-  fi
 fi
 
-# Show local IP addresses for easy access
-echo -e "\n${BLUE}Your local IP addresses:${NC}"
+# Get network interfaces and display access information
+echo -e "\n${GREEN}Access Move37 in the following ways:${NC}"
+echo -e "Local: http://localhost:$FRONTEND_PORT"
+
+# Get network interfaces
 if command -v ifconfig &> /dev/null; then
-  ifconfig | grep "inet " | grep -v 127.0.0.1
+  ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print "Network: http://" $2 ":'$FRONTEND_PORT'"}'
 elif command -v ip &> /dev/null; then
-  ip addr | grep "inet " | grep -v 127.0.0.1
+  ip addr | grep "inet " | grep -v 127.0.0.1 | awk '{print "Network: http://" $2 ":'$FRONTEND_PORT'"}'
 fi
 
-echo -e "\n${BLUE}Access the application:${NC}"
-echo -e "Backend: http://localhost:$API_PORT (local only)"
-echo -e "MCP Server: http://localhost:$MCP_PORT (local only)"
-if [ -n "$FRONTEND_PID" ]; then
-  echo -e "Frontend: http://localhost:$FRONTEND_PORT (or use your local IP/network name)"
-fi
-
-echo -e "\n${BLUE}You can access the frontend from other devices using your local IP or network name (e.g., slingshot.local)${NC}"
-echo -e "\n${BLUE}Note: Your frontend is now configured to connect to the backend at port 8000${NC}"
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 
 # Wait for all background processes

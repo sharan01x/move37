@@ -17,12 +17,12 @@ echo -e "${BLUE}Starting Move37 development environment${NC}"
 
 # Set development ports
 export API_PORT=8001
-export FRONTEND_PORT=3737
+export FRONTEND_PORT=3700
 export MCP_PORT=7777
 
 # Activate virtual environment if it exists
-if [ -d "venv" ]; then
-  source venv/bin/activate
+if [ -d ".venv" ]; then
+  source .venv/bin/activate
 fi
 
 # Check if frontend directory exists
