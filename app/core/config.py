@@ -7,6 +7,11 @@ Configuration settings for the Move 37 application.
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in the same directory as this file
+env_path = Path(__file__).parent / '.env'
+load_dotenv(env_path, override=True)  # override=True ensures all variables are loaded
 
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -126,3 +131,8 @@ MCP_SERVER_PORT = int(os.environ.get("MCP_SERVER_PORT", 7777))
 # Browser settings
 BROWSER_LLM_MODEL = "qwen2.5:latest"
 BROWSER_BINARY_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"  # Path to the browser binary
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+
+# Locale settings
+USER_LOCATION = "Europe/Madrid"
+USER_LANGUAGE = "en-gb"

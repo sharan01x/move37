@@ -8,12 +8,18 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
+# Set KMP_DUPLICATE_LIB_OK for Mac systems
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    export KMP_DUPLICATE_LIB_OK=TRUE
+fi
+
 echo -e "${BLUE}Starting Move37 Production Environment${NC}"
 
 # Set production port (default is 8000)
 export API_PORT=8000
-export API_HOST="0.0.0.0"  # Make accessible on LAN
+export API_HOST="localhost"  # Keep backend local-only
 export MCP_PORT=7777
+export FRONTEND_PORT=37  # Set frontend port to 37
 
 # Activate virtual environment if it exists
 if [ -d "venv" ]; then
@@ -75,7 +81,7 @@ trap cleanup SIGINT SIGTERM EXIT
 # Start the MCP server - UPDATED to use the correct path
 echo -e "${GREEN}Starting MCP server on port $MCP_PORT${NC}"
 # Use PYTHONPATH to ensure modules are found correctly
-PYTHONPATH=. python app/mcp/server.py --port $MCP_PORT --host "0.0.0.0" --transport sse &
+PYTHONPATH=. python app/mcp/server.py --port $MCP_PORT --host localhost --transport sse &
 MCP_PID=$!
 
 # Wait for MCP server to start
@@ -106,7 +112,7 @@ echo -e "${GREEN}Backend server started successfully.${NC}"
 if [ -d "frontend" ]; then
   echo -e "${GREEN}Starting frontend server accessible on LAN${NC}"
   cd frontend
-  npm run dev -- --host &
+  npm run dev -- --host 0.0.0.0 --port $FRONTEND_PORT &
   FRONTEND_PID=$!
   cd ..
 
@@ -127,12 +133,14 @@ elif command -v ip &> /dev/null; then
   ip addr | grep "inet " | grep -v 127.0.0.1
 fi
 
-echo -e "\n${BLUE}Access the application on another device using:${NC}"
-echo -e "http://<YOUR-IP-ADDRESS>:$API_PORT (backend)"
+echo -e "\n${BLUE}Access the application:${NC}"
+echo -e "Backend: http://localhost:$API_PORT (local only)"
+echo -e "MCP Server: http://localhost:$MCP_PORT (local only)"
 if [ -n "$FRONTEND_PID" ]; then
-  echo -e "http://<YOUR-IP-ADDRESS>:5173 (frontend)"
+  echo -e "Frontend: http://localhost:$FRONTEND_PORT (or use your local IP/network name)"
 fi
 
+echo -e "\n${BLUE}You can access the frontend from other devices using your local IP or network name (e.g., slingshot.local)${NC}"
 echo -e "\n${BLUE}Note: Your frontend is now configured to connect to the backend at port 8000${NC}"
 echo -e "\n${BLUE}Press Ctrl+C to stop all services${NC}"
 

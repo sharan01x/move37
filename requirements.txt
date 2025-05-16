@@ -1,41 +1,22 @@
-# Dependencies confirmed working with Python 3.12 - March 2024
-# Installation instructions:
-# 1. Create a new virtual environment:
-#    python3.12 -m venv venv
-#    source venv/bin/activate  # On Windows: venv\Scripts\activate
-#
-# 2. Install with: 
-#    pip install -r requirements.txt
-#
-# 3. If any package fails, try installing it separately:
-#    pip install --only-binary :all: <package-name>
-#
-# 4. Download the Spacy model (using uv, after activating the .venv):
-#    uv pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz#egg=en_core_web_sm
-#
-# Note: If faiss-cpu installation fails, try:
-# pip install faiss-cpu --no-build-isolation
-# Or install SWIG first: brew install swig (on macOS)
-
 # Core Dependencies
 fastapi==0.115.12
 uvicorn==0.34.2
-pydantic==2.11.4
+pydantic==2.10.6
 python-multipart==0.0.20
 httpx==0.28.1
 
 # LangChain Ecosystem (Core Components)
-langchain==0.3.25
-langchain-community==0.3.24
+langchain==0.3.22
+langchain-community==0.3.20
 sentence-transformers==4.1.0
 
 # AI Agents and Tools
-crewai==0.119.0
+crewai==0.120.1
 browser-use==0.1.47  # Specific version that works with browser_binary_path
 
 # LLM Integration
 ollama==0.4.8
-langchain-ollama
+langchain-ollama==0.3.0
 
 # NLP and Data Processing
 numpy==1.26.4
@@ -47,15 +28,15 @@ spacy==3.8.5
 pytest==8.3.5
 
 # Media Processing
-SpeechRecognition==3.10.0
+SpeechRecognition==3.14.3
 pydub==0.25.1
 
 # Document Processing
 PyPDF2==3.0.1
-pdfminer.six==20231228
-pdfplumber==0.11.5
+pdfminer.six==20250327
+pdfplumber==0.11.6
 python-docx==1.1.2
-Markdown==3.5.2
+Markdown==3.8
 
 # Social Media Tools Dependencies
 pyautogui==0.9.54
@@ -66,8 +47,8 @@ mastodon.py==2.0.1
 
 # MCP Dependencies
 mcp==1.8.1
-fastmcp==2.3.3
-pydantic-settings
+fastmcp==2.3.4
+pydantic-settings==2.9.1
 
 # Web utilities
 requests==2.32.3

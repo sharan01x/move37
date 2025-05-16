@@ -178,36 +178,32 @@ class ConversationDBInterface(VectorDBInterface):
         logger.info(f"Found {len(results)} relevant conversations")
         return results
     
-    def get_recent_conversation_history(self, user_id: Optional[str] = None, days: int = 1) -> str:
+    def get_conversation_history_by_date_range(self, user_id: Optional[str], start_datetime: datetime, end_datetime: datetime) -> str:
         """
-        Retrieve conversation history from the past N days formatted as a string.
+        Retrieve conversation history between specific start and end datetimes.
         Uses direct database querying rather than semantic search for more reliable results.
         
         Args:
-            user_id: Optional user ID to filter conversations. If None, returns all conversations.
-            days: Number of days to look back (default 1)
+            user_id: User ID to filter conversations
+            start_datetime: Start datetime for the history range
+            end_datetime: End datetime for the history range
             
         Returns:
-            Formatted string containing recent conversation history.
+            Formatted string containing conversation history within the specified range.
         """
-        logger.info(f"Getting recent conversation history for user: {user_id}, days: {days}")
+        logger.info(f"Getting conversation history for user: {user_id} from {start_datetime} to {end_datetime}")
         
         if not user_id:
             logger.warning("No user ID provided for conversation history")
             return "No user ID provided for conversation history."
             
-        # Get the date range
-        today = datetime.now().date()
-        start_date = today - timedelta(days=days)
-        logger.info(f"Looking for conversations from {start_date} to {today}")
-        
         # Dictionary to store all conversations
         all_conversations = []
         
         # Check if user directory exists
         if not os.path.exists(self.db_path):
             logger.warning(f"No directory found for user {user_id} at: {self.db_path}")
-            return f"No recent conversations found for user {user_id}."
+            return f"No conversations found for user {user_id} in the specified date range."
         
         logger.info(f"Scanning directory: {self.db_path}")
         
@@ -236,15 +232,14 @@ class ConversationDBInterface(VectorDBInterface):
                 try:
                     # Parse the timestamp using our utility function
                     dt = parse_datetime(timestamp_str)
-                    timestamp_date = dt.date()
                     
                     # If we successfully parsed the timestamp and it's in range
-                    if timestamp_date >= start_date:
+                    if start_datetime <= dt <= end_datetime:
                         # Update the timestamp to our display format
                         metadata["timestamp"] = format_datetime_for_display(dt)
                         # Add the metadata to our list
                         all_conversations.append(metadata)
-                        logger.debug(f"Added conversation from {timestamp_date} to history")
+                        logger.debug(f"Added conversation from {dt} to history")
                     
                 except Exception as e:
                     logger.error(f"Error parsing timestamp '{timestamp_str}': {e}")
@@ -259,10 +254,10 @@ class ConversationDBInterface(VectorDBInterface):
         
         # Build the conversation history string
         if not all_conversations:
-            return f"No relevant previous conversations found for user {user_id}."
+            return f"No conversations found for user {user_id} in the specified date range."
             
         history = []
-        for conv in all_conversations[-10:]:  # Get the last 10 conversations
+        for conv in all_conversations:  # Process all conversations
             conversation = conv.get("conversation", "")
             timestamp = conv.get("timestamp", "Unknown date")
             agent_name = conv.get("agent_name", "Agent")  # Get the actual agent name
@@ -289,7 +284,32 @@ class ConversationDBInterface(VectorDBInterface):
             formatted_history = "\n\n" + "\n\n".join(history)
             return formatted_history
         else:
-            return f"No relevant previous conversations found for user {user_id}."
+            return f"No conversations found for user {user_id} in the specified date range."
+
+    def get_recent_conversation_history(self, user_id: Optional[str] = None, days: int = 1) -> str:
+        """
+        Retrieve conversation history from the past N days formatted as a string.
+        Uses direct database querying rather than semantic search for more reliable results.
+        
+        Args:
+            user_id: Optional user ID to filter conversations. If None, returns all conversations.
+            days: Number of days to look back (default 1)
+            
+        Returns:
+            Formatted string containing recent conversation history.
+        """
+        logger.info(f"Getting recent conversation history for user: {user_id}, days: {days}")
+        
+        if not user_id:
+            logger.warning("No user ID provided for conversation history")
+            return "No user ID provided for conversation history."
+            
+        # Calculate the date range
+        end_datetime = datetime.now()
+        start_datetime = end_datetime - timedelta(days=days)
+        
+        # Use the new date range function to get the history
+        return self.get_conversation_history_by_date_range(user_id, start_datetime, end_datetime)
     
     def add_conversation_from_recall_response(self, user_id: str, query: str, recall_response: Dict[str, Any]) -> List[str]:
         """

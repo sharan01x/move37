@@ -8,6 +8,7 @@ This server exposes tools and resources that can be used by the Thinker agent.
 
 import argparse
 import logging
+from datetime import datetime
 from fastmcp import FastMCP
 
 from app.tools.math_tool import MathToolFunctions
@@ -16,12 +17,17 @@ from app.tools.file_search_tool import FileSearchToolFunctions
 from app.tools.browser_tool import run_browser_task
 from app.core.config import MCP_SERVER_PORT, MCP_SERVER_HOST
 
-# Set up logging
+# Set up logging with reduced noise
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # Changed from INFO to WARNING
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("mcp_server")
+
+# Reduce noise from uvicorn and fastapi
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+logging.getLogger("fastapi").setLevel(logging.WARNING)
+logging.getLogger("fastmcp").setLevel(logging.WARNING)
 
 def create_server():
     """Create and configure the MCP server."""
@@ -75,7 +81,7 @@ def create_server():
     )
     def recent_conversation_history(user_id: str):
         """
-        Retrieve recent conversation history for a user over the past 2 days.
+        Retrieve recent conversation history for a user over the past 2 days. Use this when you need the context of recent conversations with the user.
         
         Args:
             user_id: User ID required for authentication
@@ -88,7 +94,7 @@ def create_server():
                 logger.error("No user_id provided for conversation history resource")
                 return {"error": "user_id is required and cannot be empty"}
                 
-            conversation_history = ConversationToolFunctions.get_recent_conversation_history(user_id=user_id)
+            conversation_history = ConversationToolFunctions.get_recent_conversation_history(user_id=user_id, days=2)
             return conversation_history
         except Exception as e:
             logger.error(f"Error retrieving conversation history: {e}")
@@ -184,6 +190,56 @@ def create_server():
             return files
         except Exception as e:
             logger.error(f"Error listing user files: {e}")
+            return {"error": str(e)}
+    
+    @mcp.tool()
+    def get_historical_conversations(user_id: str, start_date_time: str, end_date_time: str):
+        """
+        Retrieve conversation history between specific start and end dates and times.
+        
+        Args:
+            user_id: User ID required for authentication
+            start_date_time: Start datetime in ISO format (e.g., "2024-01-01T00:00:00")
+            end_date_time: End datetime in ISO format (e.g., "2024-01-31T23:59:59")
+            
+        Returns:
+            Conversation history within the specified date range
+        """
+        try:
+            if not user_id:
+                logger.error("No user_id provided for historical conversation history")
+                return {"error": "user_id is required and cannot be empty"}
+            
+            # Parse the datetime strings
+            try:
+                # Try parsing with ISO format first
+                try:
+                    start_dt = datetime.fromisoformat(start_date_time)
+                    end_dt = datetime.fromisoformat(end_date_time)
+                except ValueError:
+                    # If ISO format fails, try parsing with date only format
+                    try:
+                        start_dt = datetime.strptime(start_date_time, "%Y-%m-%d")
+                        end_dt = datetime.strptime(end_date_time, "%Y-%m-%d")
+                        # Set end time to end of day if only date provided
+                        end_dt = end_dt.replace(hour=23, minute=59, second=59)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid datetime format. Please use ISO format (YYYY-MM-DDTHH:MM:SS) or date format (YYYY-MM-DD): {str(e)}")
+            except ValueError as e:
+                logger.error(f"Invalid datetime format: {e}")
+                return {"error": f"Invalid datetime format. Please use ISO format (YYYY-MM-DDTHH:MM:SS): {str(e)}"}
+            
+            # Get the conversation history
+            history = ConversationToolFunctions.get_historical_conversation_history(
+                user_id=user_id,
+                start_date_time=start_dt,
+                end_date_time=end_dt
+            )
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"Error retrieving historical conversation history: {e}")
             return {"error": str(e)}
     
     return mcp

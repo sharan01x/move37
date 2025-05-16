@@ -7,8 +7,12 @@ Tool for accessing past conversations in the Move 37 application.
 
 from typing import Dict, Any, List, Optional
 from functools import lru_cache
+from datetime import datetime
+import logging
 
 from app.database.conversation_db import ConversationDBInterface
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -50,6 +54,36 @@ class ConversationToolFunctions:
         )
         
         return conversation_history
+    
+    @staticmethod
+    def get_historical_conversation_history(user_id: str, start_date_time: datetime, end_date_time: datetime) -> str:
+        """
+        Get conversation history between specific start and end datetimes.
+        
+        Args:
+            user_id: The ID of the user whose conversations to retrieve
+            start_date_time: Start datetime for the history range
+            end_date_time: End datetime for the history range
+            
+        Returns:
+            Formatted string containing conversation history within the specified range
+        """
+        try:
+            # Initialize the conversation database interface
+            db = ConversationDBInterface(user_id=user_id)
+            
+            # Get the conversation history using the date range function
+            history = db.get_conversation_history_by_date_range(
+                user_id=user_id,
+                start_datetime=start_date_time,
+                end_datetime=end_date_time
+            )
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"Error retrieving historical conversation history: {e}")
+            return f"Error retrieving conversation history: {str(e)}"
     
     @staticmethod
     def search_for_past_conversations_with_query_similarity(query: str, user_id: str, limit: int = 1) -> List[Dict[str, Any]]:

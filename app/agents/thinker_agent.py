@@ -12,6 +12,7 @@ import requests
 import re
 import inspect
 import asyncio
+from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List, Union
 from pydantic import BaseModel
 
@@ -19,7 +20,9 @@ from app.core.config import (
     THINKER_LLM_PROVIDER,
     THINKER_LLM_MODEL,
     FAST_PROCESSING_LLM_MODEL,
-    CHAT_API_URL
+    CHAT_API_URL,
+    USER_LOCATION,
+    USER_LANGUAGE
 )
 from app.mcp.client import MCPClient
 from app.tools.user_information_tool import get_user_preferences, get_user_facts_relevant_to_query
@@ -600,6 +603,10 @@ TO USE RESOURCES:
 
         # Build the set of user facts that are relevant to the user's query
         user_facts = "FACTS ABOUT THE USER RELEVANT TO THE QUERY:\n\n"
+        user_facts += f"User's home location code is '{USER_LOCATION}'"
+        user_facts += f"Time at home location is {datetime.now().strftime('%I:%M %p on %A, %B %d, %Y')} - "
+        user_facts += f"User's preferred language code is '{USER_LANGUAGE}'"
+
         try:
             user_facts += get_user_facts_relevant_to_query(user_id, query)
         except Exception as e:

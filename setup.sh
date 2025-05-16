@@ -41,17 +41,33 @@ fi
 # Install requirements using uv
 echo -e "${YELLOW}Installing dependencies with uv...${NC}"
 if [ -f requirements.txt ]; then
+    # First try installing all requirements at once
     uv pip install -r requirements.txt
     
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Dependencies installed successfully!${NC}"
-    else
-        echo -e "${RED}Error installing dependencies. Some packages may need to be installed individually.${NC}"
+    if [ $? -ne 0 ]; then
+        echo -e "${YELLOW}Attempting to install packages individually...${NC}"
         
-        # Try installing packages that might cause trouble individually
-        echo -e "${YELLOW}Attempting to install faiss-cpu separately...${NC}"
-        uv pip install faiss-cpu --no-build-isolation # faiss-cpu can sometimes need this
-        # Add other problematic packages here if needed
+        # Read requirements.txt and install each package individually
+        while IFS= read -r package || [ -n "$package" ]; do
+            # Skip empty lines and comments
+            [[ -z "$package" || "$package" =~ ^[[:space:]]*# ]] && continue
+            
+            # Remove version specifiers for individual installation
+            package_name=$(echo "$package" | sed -E 's/([^=<>!~]+).*/\1/')
+            
+            echo -e "${YELLOW}Installing $package_name...${NC}"
+            
+            # Special handling for faiss-cpu
+            if [[ "$package_name" == "faiss-cpu" ]]; then
+                uv pip install "$package" --no-build-isolation
+            else
+                uv pip install "$package"
+            fi
+            
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}Failed to install $package_name. Continuing with other packages...${NC}"
+            fi
+        done < requirements.txt
     fi
 else
     echo -e "${RED}requirements.txt not found. Skipping dependency installation.${NC}"
