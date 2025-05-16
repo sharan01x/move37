@@ -101,9 +101,9 @@ def create_server():
             return {"error": str(e)}
     
     @mcp.tool()
-    def search_for_past_conversations_with_query_similarity(query: str, user_id: str, limit: int = 1):
+    def search_for_specific_information_in_conversations(query: str, user_id: str, limit: int = 1):
         """
-        Search through the past conversations to find anything semantically similar to a query. 
+        Search for specific information in past conversations to find anything using semantic search. Use like a keyword search but to search for ideas.
         
         Args:
             query: Query string to search for
