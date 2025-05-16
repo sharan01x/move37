@@ -10,45 +10,55 @@ This project is entirely free for personal use but is covered by a license to en
 
 ## Features
 
-### 1. Get quick answers from a general purpose AI model
+### 1. The most powerful source for answers at the moment. Ask general questions, recall information from old conversations, do tasks that require the web, and more to come!     
+
+![Ask Around](images/01-ThinkerApp.png)
+
+
+### 2. Get quick answers from a general purpose AI model
 
 ![First Reponder](images/01-FirstResponder.png)
 
-### 2. Calculate with accuracy, better than LLMs can
+
+### 3. Calculate with accuracy, better than LLMs can
 
 ![Number Ninja](images/02-NumberNinja.png)
 
-### 3. Tap into personal knowledge and get answers tailored to you
+
+### 4. Tap into personal knowledge and get answers tailored to you
 
 ![Persephone](images/03-Persephone.png)
 
-### 4. Upload your own files and ask questions of them
+
+### 5. Upload your own files and ask questions of them
 
 ![Librarian](images/04-Librarian.png)
 
-### 5. Make posting to all your social media accounts a breeze
+
+### 6. Make posting to all your social media accounts a breeze
 
 ![Butterfly](images/05-Butterfly.png)
 
-### 6. Record anything, including meeting notes, document information or anything else and recall them when you need
+
+### 7. Record anything, including meeting notes, document information or anything else and recall them when you need
 
 ![Submissions](images/06-Submissions.png)
 
-### 7. View all the things recorded about you and delete anything, any time
+
+### 8. View all the things recorded about you and delete anything, any time
 
 ![User Profile](images/07-UserProfile.png)
 
-### 8. Upload your own files so you can ask any question about them
+
+### 9. Upload your own files so you can ask any question about them
 
 ![Files](images/08-Files.png)
 
-### 9. The quickest way to ask questions and get the answer from multiple sources or to get multiple perspectives
-
-![Ask Around](images/09-AskAround.png)
 
 ### 10. Dark mode, of course
 
 ![Dark Mode](images/10-DarkMode.png)
+
 
 ### 11. Mobile compatible
 

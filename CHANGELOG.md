@@ -1,5 +1,11 @@
 # Changelog
 
+## 16 May 2025
+* Added the Browser-Use plugin to the Thinker Ap so that it can have access to real-time information on the web as well as to use websites to achieve specific objectives
+* Simplified setup by using UV (just run setup.sh or setup.bat)
+* Improved the context being supplied to the Thinker App to make the answers better
+* Removed the AskAround app as it's no longer useful
+
 ## 12 May 2025
 * Added a new Thinker app that works using MCP
 - It replicates the existing functionality of First Responder, Persephone, Librarian and Number Ninja agents. 
