@@ -12,6 +12,7 @@ import requests
 import re
 import inspect
 import asyncio
+import threading
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List, Union
 from pydantic import BaseModel
@@ -26,6 +27,9 @@ from app.core.config import (
 )
 from app.mcp.client import MCPClient
 from app.tools.user_information_tool import get_user_preferences, get_user_facts_relevant_to_query
+from app.database.conversation_db import ConversationDBInterface
+from app.agents.user_fact_extractor_agent import UserFactExtractorAgent
+from app.models.messages import MessageType
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,9 @@ class ThinkerAgent:
         
         # Initialize the MCP client
         self._mcp_client = MCPClient()
+        
+        # Initialize User Fact Extractor Agent
+        self.user_fact_extractor_agent = UserFactExtractorAgent()
         
         # Shared context handling instructions used across different prompts
         self._context_handling_instructions = """
@@ -264,8 +271,24 @@ Please provide a proper tool call to answer this query."""
                     tool_names = ", ".join(mentioned_tools)
                     warning = f"\n\nNote: I tried to use tools ({tool_names}) but encountered an issue with the tool call format. I've provided the best answer I can without using these tools."
                 
+                clean_response = clean_llm_response + warning if warning else clean_llm_response
+                
+                # Store conversation asynchronously
+                asyncio.create_task(self._store_conversation_async(
+                    user_id=user_id,
+                    query=query,
+                    direct_response=clean_response,
+                    agent_name=self.name
+                ))
+                
+                # Process conversation for user facts asynchronously
+                asyncio.create_task(self.user_fact_extractor_agent.extract_facts(
+                    f"User Query: {query}\nAgent Response: {clean_response}", 
+                    user_id=user_id
+                ))
+                
                 response = {
-                    "answer": clean_llm_response + warning if warning else clean_llm_response,
+                    "answer": clean_response,
                     "reasoning": "I answered this query directly without using tools.",
                     "agent_name": self.name
                 }
@@ -307,7 +330,7 @@ Please provide a proper tool call to answer this query."""
             
             # Format the final response with tool results
             try:
-                response = await self._format_final_response(query, llm_response, tool_results)
+                response = await self._format_final_response(query, llm_response, tool_results, user_id)
                 # Update conversation context with this exchange
                 self._add_to_conversation_context(query, response["answer"])
                 return response
@@ -391,7 +414,7 @@ Please provide a proper tool call to answer this query."""
             logger.error(f"Error calling LLM: {str(e)}")
             raise
 
-    async def _format_final_response(self, query: str, llm_response: str, tool_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _format_final_response(self, query: str, llm_response: str, tool_results: List[Dict[str, Any]], user_id: str) -> Dict[str, Any]:
         """
         Format the final response using the LLM response and tool results.
         
@@ -399,6 +422,7 @@ Please provide a proper tool call to answer this query."""
             query: The original user query.
             llm_response: The response from the LLM.
             tool_results: Results from any tool calls.
+            user_id: The ID of the user making the query.
             
         Returns:
             Formatted response dictionary.
@@ -441,6 +465,20 @@ Provide a clear, direct answer that addresses the query without mentioning the t
                 # Clean the thinking from the final answer
                 cleaned_answer = self._clean_response(final_answer)
                 
+                # Store conversation asynchronously after getting final answer
+                asyncio.create_task(self._store_conversation_async(
+                    user_id=user_id,
+                    query=query,
+                    direct_response=cleaned_answer,
+                    agent_name=self.name
+                ))
+
+                # Process conversation for user facts asynchronously
+                asyncio.create_task(self.user_fact_extractor_agent.extract_facts(
+                    f"User Query: {query}\nAgent Response: {cleaned_answer}", 
+                    user_id=user_id
+                ))
+
                 return {
                     "answer": cleaned_answer,
                     "reasoning": "I used specialized tools to find this answer.",
@@ -461,6 +499,20 @@ Provide a clear, direct answer that addresses the query without mentioning the t
         else:
             # If no tools were used, just return the cleaned LLM response directly
             cleaned_response = self._clean_response(llm_response)
+            # Store conversation asynchronously for direct response
+            asyncio.create_task(self._store_conversation_async(
+                user_id=user_id,
+                query=query,
+                direct_response=cleaned_response,
+                agent_name=self.name
+            ))
+            
+            # Process conversation for user facts asynchronously
+            asyncio.create_task(self.user_fact_extractor_agent.extract_facts(
+                f"User Query: {query}\nAgent Response: {cleaned_response}", 
+                user_id=user_id
+            ))
+
             return {
                 "answer": cleaned_response,
                 "reasoning": "I answered this query directly without using tools.",
@@ -772,22 +824,29 @@ Recent conversation:
         """
         self.message_callback = callback
 
-    def _send_status_message(self, message: str):
+    def _send_status_message(self, status_text: str):
         """
         Send a status message via the callback if it's set.
         
         Args:
-            message: Message to send.
+            status_text: Message string to send.
         """
         if self.message_callback:
+            message_payload = {
+                "type": MessageType.STATUS_UPDATE,
+                "data": {
+                    "message": status_text,
+                    "agent": self.name
+                }
+            }
             try:
                 # Check if the callback is a coroutine function (async)
                 if inspect.iscoroutinefunction(self.message_callback):
                     # Create a task to run the coroutine
-                    asyncio.create_task(self.message_callback(message))
+                    asyncio.create_task(self.message_callback(message_payload))
                 else:
                     # Call the sync function directly
-                    self.message_callback(message)
+                    self.message_callback(message_payload)
             except Exception as e:
                 logger.error(f"Error sending status message: {e}")
                 # Continue execution even if sending the message fails
@@ -830,3 +889,31 @@ Recent conversation:
             logger.error(f"Error cleaning response: {e}")
             # Return original text with simple tag stripping as fallback
             return re.sub(r'<[^>]+>', '', text).strip()
+
+    # Update the conversation storage method to use asyncio
+    async def _store_conversation_async(self, user_id: str, query: str, direct_response: str, agent_name: Optional[str] = None) -> None:
+        """
+        Store a conversation asynchronously using asyncio.
+        
+        Args:
+            user_id: ID of the user.
+            query: Original user query
+            direct_response: Agent's response
+            agent_name: Name of the agent that provided the response
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Create a user-specific conversation database to ensure we're storing in the right folder
+            user_specific_db = ConversationDBInterface(user_id=user_id)
+            
+            # Store the conversation
+            user_specific_db.add_conversation(
+                user_id=user_id,
+                user_query=query,
+                agent_response=direct_response,
+                agent_name=agent_name,
+                timestamp=timestamp
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in async conversation storage: {e}")

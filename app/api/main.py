@@ -33,6 +33,7 @@ from app.models.messages import (MessageType, RecallQueryMessage, StatusUpdateMe
     UserFactsUpdateMessage, UserFactsDeleteMessage, UserFactsResponseMessage, FilesUploadMessage, 
     FilesListMessage, FilesDeleteMessage, FilesResponseMessage, FilesTranscribeMessage)
 from app.utils.file_processor import FileProcessor
+from app.agents.thinker_agent import ThinkerAgent
 
 
 # Create the FastAPI app
@@ -217,7 +218,7 @@ async def websocket_recall(websocket: WebSocket):
             data = message.get("data", {})
             query = data.get("query")
             user_id = data.get("user_id")
-            target_agent = data.get("target_agent", "all")  # Default to 'all' if not specified
+            target_agent = data.get("target_agent", None)
             query_id = data.get("query_id")
             
             # Extract attachment file path for Butterfly agent if available
@@ -254,21 +255,67 @@ async def websocket_recall(websocket: WebSocket):
             
             # Process the recall operation with the message callback
             try:
-                # For Butterfly agent with attachment, pass the attachment file path
-                if target_agent == "butterfly" and attachment_file_path:
+                if target_agent == "thinker":
+                    # Direct route to ThinkerAgent
+                    await message_callback({
+                         "type": "status_update",
+                         "data": {
+                             "message": "Processing query with Thinker...",
+                             "operation_id": str(uuid.uuid4()),
+                             "agent": "ThinkerAgent"
+                         }
+                    })
+                    
+                    # Create a new instance of ThinkerAgent for this request
+                    thinker_agent_instance = ThinkerAgent()
+                    
+                    # Call ThinkerAgent directly
+                    response = await thinker_agent_instance.answer_query_async(
+                        query,
+                        user_id=user_id,
+                        message_callback=message_callback
+                    )
+
+                    # Send final response from Thinker
+                    if response.get("answer"):
+                         await message_callback({
+                            "type": "agent_response",
+                            "data": response
+                         })
+
+                    # Send DONE signal after Thinker completes
+                    await websocket_handler.message_service.send_message(
+                        client_id,
+                        MessageType.STATUS_UPDATE,
+                        {
+                            "message": "DONE",
+                            "operation_id": str(uuid.uuid4()),
+                            "is_final": True
+                        }
+                    )
+
+                elif target_agent == "butterfly" and attachment_file_path:
+                    # Butterfly agent with attachment handled by Conductor
                     response = await conductor_agent.process_recall_operation(
                         data_package, 
                         message_callback,
                         attachment_file_path=attachment_file_path
                     )
                 else:
+                    # Other agents handled by Conductor
                     response = await conductor_agent.process_recall_operation(data_package, message_callback)
-                
-                if not isinstance(response, RecallResponse):
-                    response = RecallResponse(
-                        success=True,
-                        message="Successfully executed recall operation"
-                    )
+
+                    # Send final response from Conductor if not Thinker
+                    if not isinstance(response, RecallResponse) and response.get("answer"):
+                         await message_callback({
+                            "type": "agent_response",
+                            "data": response
+                         })
+
+                    # Send DONE signal after Conductor completes if not Thinker (already handled internally by Conductor?)
+                    # Re-evaluating: Conductor.process_recall_operation sends 'DONE' for all agents it handles.
+                    # We only need to send DONE here for the direct Thinker route.
+
             except Exception as e:
                 print(f"Error in process_recall_operation: {e}")
                 response = RecallResponse(
@@ -276,12 +323,12 @@ async def websocket_recall(websocket: WebSocket):
                     message=f"Error executing recall operation: {str(e)}"
                 )
             
-            # Send the final response back to the client
-            await websocket_handler.message_service.send_message(
-                client_id,
-                MessageType.RECORD_RESPONSE,
-                response.dict()
-            )
+            # Send the final response back to the client (handled within the if/elif blocks now for clarity)
+            # await websocket_handler.message_service.send_message(
+            #     client_id,
+            #     MessageType.RECORD_RESPONSE, # This seems incorrect, should be agent_response or handled by callback
+            #     response.dict() if isinstance(response, RecallResponse) else response # Need to handle dict response
+            # )
             
         except Exception as e:
             print(f"Error in handle_recall_query: {e}")
