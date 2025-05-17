@@ -81,9 +81,10 @@
   function processLatex(content: string): string {
     if (!content || !browser) return content || '';
     
+    // Only process if there are LaTeX delimiters
+    if (!content.includes('$')) return content;
+    
     try {
-      // Use a more robust regex pattern for handling LaTeX delimiters
-      
       // First, handle display LaTeX: $$...$$
       content = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, latex) => {
         try {
@@ -98,7 +99,6 @@
       });
       
       // Then handle inline LaTeX: $...$ (but not $$...$$ which was already processed)
-      // This regex ensures we don't capture $$ (which would be the start/end of a display math block)
       content = content.replace(/(?<!\$)\$((?!\$)[\s\S]+?)\$(?!\$)/g, (match, latex) => {
         try {
           return katex.renderToString(latex.trim(), {
@@ -896,9 +896,37 @@
     margin: 0.5rem 0;
   }
   
-  :global(.content ul, .content ol) {
+  :global(.content ul) {
+    list-style-type: disc;
+  }
+  
+  :global(.content ol) {
+    list-style: none;
+    counter-reset: item;
     margin: 0.5rem 0;
-    padding-left: 1.5rem;
+    padding-left: 2.5em;
+  }
+  
+  :global(.content ol > li) {
+    counter-increment: item;
+    margin: 0.25rem 0;
+    position: relative;
+    font-family: inherit;
+    padding-left: 0.5em;
+  }
+  
+  :global(.content ol > li::before) {
+    content: counter(item) ". ";
+    font-weight: bold;
+    position: absolute;
+    left: -2.2em;
+    width: 2em;
+    text-align: right;
+    font-family: inherit;
+  }
+  
+  :global(.content ul > li) {
+    font-family: inherit;
   }
   
   :global(.content h1, .content h2, .content h3, .content h4, .content h5, .content h6) {
