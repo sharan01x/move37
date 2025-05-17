@@ -108,9 +108,69 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         if message_callback:
             self.message_callback = message_callback
         
+        # Process the query with LLM to get an initial response
+        try:
+            self._send_status_message("Working on a quick answer...")
+
+            # Extract context entities to enhance the initial system prompt
+            context_entities = await self._extract_context_entities()
+            
+            # Format context section if context entities are available
+            context_section = ""
+            if context_entities and context_entities is not False:
+                context_section = f"""HERE IS THE CONTEXT OF THE CONVERSATION SO FAR:
+                
+{context_entities}
+
+"""
+            
+            # Create a simplified system prompt for the initial response
+            initial_system_prompt = f"""You are the Thinker agent, a helpful AI assistant. 
+Provide a quick answer to the user's query if you can answer it confidently and completely with your knowledge.
+
+IMPORTANT:
+- If the query requires looking up information, using tools, or accessing data you don't have, respond with,
+"Let me think about that for a little longer...", "I need to look that up...", "I'll get back to you with an answer...", or a variation of that.
+- Your goal is to only answer immediately if you are 100% confident in your ability to provide a complete answer. The user will be provided with another answer post yours.
+- If you do provide an answer, let the user know that this was a quick answer and that you will provide another answer post yours.
+
+{context_section}
+
+Keep your response brief and to the point. 
+/no_think"""
+
+            # Get the initial response from the LLM
+            initial_response_text = self._call_llm(system_prompt=initial_system_prompt, user_prompt=query)
+            
+            # Clean the response
+            initial_response_text = self._clean_response(initial_response_text)
+            
+            # Send initial agent response to the frontend
+            if self.message_callback:
+                initial_response = {
+                    "type": MessageType.AGENT_RESPONSE,
+                    "data": {
+                        "answer": initial_response_text,
+                        "agent_name": self.name
+                    }
+                }
+                try:
+                    # Check if the callback is a coroutine function (async)
+                    if inspect.iscoroutinefunction(self.message_callback):
+                        # Create a task to run the coroutine
+                        await self.message_callback(initial_response)
+                    else:
+                        # Call the sync function directly
+                        self.message_callback(initial_response)
+                except Exception as e:
+                    logger.error(f"Error sending initial agent response: {e}")
+        except Exception as e:
+            logger.error(f"Error generating initial response: {e}")
+            # If we fail to generate an initial response, continue with the main processing
+        
         try:
             # Get available tools and resources
-            self._send_status_message("Evaluating the available tools and resources...")
+            self._send_status_message("Getting available tools and resources...")
             try:
                 tools = await self._mcp_client.get_available_tools()
                 resources = await self._mcp_client.get_available_resources()
@@ -120,31 +180,25 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
                     f"I encountered an error while getting my tools and resources: {str(e)}",
                     "There was an error connecting to the server."
                 )
-
-            # Extract context entities to enhance the system prompt
-            context_entities = await self._extract_context_entities()
             
-            # Log extraction status
+            # Log extraction status for context entities (which were already extracted for initial response)
             if context_entities is False:
                 logger.warning("Context extraction failed, proceeding without context")
             elif not context_entities:
                 pass  # No context entities extracted (empty string)
-            
+
             # Generate prompts based on available tools and context
             system_prompt = await self._create_system_prompt(tools, user_id, query, context_entities, resources)
             
             # Create a simple user prompt without conversation history
             user_prompt = f"\n\nUser ID: {user_id}\nCurrent Query: {query}\n\nPlease answer this query."
             
-            # Analyze query with LLM to determine tools needed
-            self._send_status_message("Analyzing your query...")
-            
             # Track whether we have already tried to refine the response
             refinement_attempts = 0
             max_refinement_attempts = 3
             
             while refinement_attempts <= max_refinement_attempts:
-                self._send_status_message("This needs a little more thought...")
+
                 try:
                     # Get response from LLM
                     llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
@@ -255,7 +309,6 @@ Please provide a proper tool call to answer this query."""
                 # Create an enhanced prompt with all resource context
                 context_prompt = f"\n\nUser ID: {user_id}\n\n" + "\n\n".join(context_sections) + f"\n\nCurrent Query: {query}\n\nPlease answer this query."
                 
-                self._send_status_message("Analyzing query with additional context...")
                 llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=context_prompt)
                 clean_llm_response = self._clean_response(llm_response)
                 # Re-extract tool calls with the updated response
@@ -429,7 +482,6 @@ Please provide a proper tool call to answer this query."""
         """
         # If we have tool results, we need to format a final answer using them
         if tool_results:
-            self._send_status_message("Formulating final answer...")
             
             # Prepare a prompt for the LLM to interpret tool results
             system_prompt = f"""You are providing a final, concise answer to a user's question based on tool results.
@@ -710,7 +762,7 @@ INSTRUCTIONS FOR ANSWERING USER QUERIES:
 4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
 6. If you have the user's preferences or facts about the user, use them to personalize the answer to the user's query in a friendly and engaging way.
-7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. 
+7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. If the user was already provided the answer right before you, don't repeat the answer but instead try to add more detail or personalise it if possible.
 
 {context_section}
 --------------------------------
