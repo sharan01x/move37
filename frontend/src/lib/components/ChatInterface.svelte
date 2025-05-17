@@ -898,6 +898,14 @@
   
   :global(.content ul) {
     list-style-type: disc;
+    margin: 0.5rem 0;
+    padding-left: 1.5em;
+  }
+  
+  :global(.content ul > li) {
+    font-family: inherit;
+    margin: 0.25rem 0;
+    position: relative;
   }
   
   :global(.content ol) {
@@ -922,10 +930,6 @@
     left: -2.2em;
     width: 2em;
     text-align: right;
-    font-family: inherit;
-  }
-  
-  :global(.content ul > li) {
     font-family: inherit;
   }
   
