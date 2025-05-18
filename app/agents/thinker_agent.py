@@ -12,11 +12,9 @@ import requests
 import re
 import inspect
 import asyncio
-import threading
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List, Union
 from pydantic import BaseModel
-
 from app.core.config import (
     THINKER_LLM_PROVIDER,
     THINKER_LLM_MODEL,
@@ -26,7 +24,7 @@ from app.core.config import (
     USER_LANGUAGE
 )
 from app.mcp.client import MCPClient
-from app.tools.user_information_tool import get_user_preferences, get_user_facts_relevant_to_query
+from app.tools.user_information_tool import get_user_preferences, get_user_facts_relevant_to_query, get_user_goals
 from app.database.conversation_db import ConversationDBInterface
 from app.agents.user_fact_extractor_agent import UserFactExtractorAgent
 from app.models.messages import MessageType
@@ -453,11 +451,7 @@ Provide a clear, direct answer that addresses the query without mentioning the t
 """
             
             try:
-                print(f"\n\nSystem prompt:\n--------------------------------\n{system_prompt}")
-                print(f"\n\nUser prompt:\n--------------------------------\n{user_prompt}")
-
-
-                # Get the final answer from the LLM
+                 # Get the final answer from the LLM
                 final_answer = self._call_llm(system_prompt, user_prompt)
                 
                 # Clean the thinking from the final answer
@@ -662,6 +656,16 @@ TO USE RESOURCES:
         except Exception as e:
             logger.error(f"Error fetching user facts: {e}")
             user_facts = ""
+
+        # Build the user goals block
+        user_goals = "THE USER'S LIFE GOALS:\n\n"
+        try:
+            user_goals += get_user_goals(user_id)
+        except Exception as e:
+            logger.error(f"Error fetching user goals: {e}")
+            user_goals = ""
+
+        print(f"\n\nUser goals:\n--------------------------------\n{user_goals}")
         
         # Build the user_id guidance
         user_id_guidance = ""
@@ -695,6 +699,8 @@ You have access to the following tools and resources but use them only when nece
 
 {user_id_guidance}
 
+{user_goals}
+
 {user_preference_information}
 
 {user_facts}
@@ -707,7 +713,7 @@ INSTRUCTIONS FOR ANSWERING USER QUERIES:
 3. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
 4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
-6. If you have the user's preferences or facts about the user, use them to personalize the answer to the user's query in a friendly and engaging way.
+6. If you have the user's preferences, facts about the user, or the user's goals, use them to personalize the answer to the user's query in a friendly and engaging way.
 7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. 
 
 {context_section}

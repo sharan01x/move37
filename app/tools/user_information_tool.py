@@ -88,7 +88,7 @@ def get_user_facts_relevant_to_query(user_id: str, query: str) -> str:
                 logger.info(f"Using {len(relevant_facts)} recent facts as fallback")
         
         # Format facts for the prompt
-        facts_context = "No relevant facts found about the user found"
+        facts_context = "No relevant facts found about the user"
         if relevant_facts:
             facts_context = ""
             for i, fact in enumerate(relevant_facts, 1):
@@ -108,3 +108,36 @@ def get_user_facts_relevant_to_query(user_id: str, query: str) -> str:
     except Exception as e:
         logger.error(f"Error retrieving user facts: {e}")
         return "Could not retrieve user facts due to an error."
+
+def get_user_goals(user_id: str) -> str:
+    """Get formatted user goals from the database.
+    
+    Args:
+        user_id: The ID of the user whose goals to retrieve.
+        
+    Returns:
+        A formatted string containing the user's goals, or a message if none found.
+    """
+    user_goals = "No specific goals found."
+    try:
+        # Create a user-specific instance
+        user_specific_db = UserFactsDBInterface(user_id=user_id)
+        
+        # Get goals from the database
+        goal_facts = user_specific_db.get_facts_by_category("goal")
+        
+        if goal_facts:
+            user_goals = ""
+            for i, goal in enumerate(goal_facts, 1):
+                # Format the date
+                created_date = ""
+                try:
+                    created_date = datetime.fromisoformat(goal['created_at']).strftime("%B %d, %Y")
+                except (ValueError, KeyError):
+                    created_date = "unknown date"
+                user_goals += f"{i}. {goal['fact']} (stated on {created_date})\n"
+    except Exception as e:
+        logger.error(f"Error fetching user goals: {e}")
+        user_goals = "Could not retrieve user goals due to an error."
+        
+    return user_goals
