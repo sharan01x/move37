@@ -110,7 +110,7 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         
         try:
             # Get available tools and resources
-            self._send_status_message("Evaluating the available tools and resources...")
+            self._send_status_message("Getting available tools and resources...")
             try:
                 tools = await self._mcp_client.get_available_tools()
                 resources = await self._mcp_client.get_available_resources()
@@ -144,7 +144,6 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
             max_refinement_attempts = 3
             
             while refinement_attempts <= max_refinement_attempts:
-                self._send_status_message("This needs a little more thought...")
                 try:
                     # Get response from LLM
                     llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
@@ -255,7 +254,6 @@ Please provide a proper tool call to answer this query."""
                 # Create an enhanced prompt with all resource context
                 context_prompt = f"\n\nUser ID: {user_id}\n\n" + "\n\n".join(context_sections) + f"\n\nCurrent Query: {query}\n\nPlease answer this query."
                 
-                self._send_status_message("Analyzing query with additional context...")
                 llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=context_prompt)
                 clean_llm_response = self._clean_response(llm_response)
                 # Re-extract tool calls with the updated response
@@ -775,8 +773,8 @@ Recent conversation:
                     "options": {"temperature": 0.1}  # Lower temperature for more consistent extraction
                 }
                 
-                # Make the API call
-                response = requests.post(url, json=payload, timeout=15)  # Increased timeout for reliability
+                # Make the API call in a separate thread
+                response = await asyncio.to_thread(requests.post, url, json=payload, timeout=15)
                 response.raise_for_status()
                 
                 # Extract the content from the response
