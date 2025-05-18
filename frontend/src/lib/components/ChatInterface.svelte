@@ -22,7 +22,7 @@
     addMessageToConversation
   } from '$lib/stores/agentsStore';
   import { darkMode } from '$lib/stores/themeStore';
-  import { sendChatMessage, showConnectionStatus } from '$lib/stores/websocketStore';
+  import { sendChatMessage, showConnectionStatus, isConnected } from '$lib/stores/websocketStore';
   import ConnectionStatus from './ConnectionStatus.svelte';
   import StatusMessage from './StatusMessage.svelte';
   import FirstResponderAgent from './FirstResponderAgent.svelte';
@@ -43,6 +43,9 @@
   let messagesContainer: HTMLDivElement;
   let fileInput: HTMLInputElement;
   let md: MarkdownIt;
+  let messageSound: HTMLAudioElement;
+  let errorSound: HTMLAudioElement;
+  let flourishSound: HTMLAudioElement;
   
   // Initialize markdown parser without KaTeX (we'll handle it separately)
   if (browser) {
@@ -53,6 +56,13 @@
       linkify: true,      // Autoconvert URL-like text to links
       typographer: true,  // Enable smart quotes and other replacements
     });
+  }
+  
+  // Initialize audio elements
+  if (browser) {
+    messageSound = new Audio('/sounds/message.mp3');
+    errorSound = new Audio('/sounds/error.mp3');
+    flourishSound = new Audio('/sounds/flourish.mp3');
   }
   
   // Format agent names for display only, without changing the original agentId
@@ -160,6 +170,40 @@
   // Auto-resize input on value change
   $: if ($messageInput) {
     resizeTextarea();
+  }
+  
+  // Function to play message sound
+  function playMessageSound() {
+    if (browser && messageSound) {
+      messageSound.currentTime = 0;
+      messageSound.play().catch(err => console.error('Error playing message sound:', err));
+    }
+  }
+  
+  // Function to play error sound
+  function playErrorSound() {
+    if (browser && errorSound) {
+      errorSound.currentTime = 0;
+      errorSound.play().catch(err => console.error('Error playing error sound:', err));
+    }
+  }
+
+  // Function to play error sound
+  function playFlourishSound() {
+    if (browser && flourishSound) {
+      flourishSound.currentTime = 0;
+      flourishSound.play().catch(err => console.error('Error playing flourish sound:', err));
+    }
+  }
+  
+  // Watch for new messages and play sound
+  $: if ($currentConversation && $currentConversation.length > 0) {
+    playMessageSound();
+  }
+  
+  // Watch for connection status changes
+  $: if (!$isConnected) {
+    playFlourishSound();
   }
   
   // Lifecycle hooks
