@@ -15,6 +15,7 @@ import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List, Union
 from pydantic import BaseModel
+
 from app.core.config import (
     THINKER_LLM_PROVIDER,
     THINKER_LLM_MODEL,
@@ -57,14 +58,6 @@ class ThinkerAgent:
         
         # Initialize User Fact Extractor Agent
         self.user_fact_extractor_agent = UserFactExtractorAgent()
-        
-        # Shared context handling instructions used across different prompts
-        self._context_handling_instructions = """
-IMPORTANT: When a user's question contains pronouns (he, she, it, they) or references previous information:
-1. FIRST look at the most recent conversation history to resolve these references
-2. Use conversation history to understand CONTEXT, not just to find answers
-3. If a follow-up question relates to information you just provided, use that information
-"""
     
     def _add_to_conversation_context(self, query: str, answer: str):
         """
@@ -106,69 +99,9 @@ IMPORTANT: When a user's question contains pronouns (he, she, it, they) or refer
         if message_callback:
             self.message_callback = message_callback
         
-        # Process the query with LLM to get an initial response
-        try:
-            self._send_status_message("Working on a quick answer...")
-
-            # Extract context entities to enhance the initial system prompt
-            context_entities = await self._extract_context_entities()
-            
-            # Format context section if context entities are available
-            context_section = ""
-            if context_entities and context_entities is not False:
-                context_section = f"""HERE IS THE CONTEXT OF THE CONVERSATION SO FAR:
-                
-{context_entities}
-
-"""
-            
-            # Create a simplified system prompt for the initial response
-            initial_system_prompt = f"""You are the Thinker agent, a helpful AI assistant. 
-Provide a quick answer to the user's query if you can answer it confidently and completely with your knowledge.
-
-IMPORTANT:
-- If the query requires looking up information, using tools, or accessing data you don't have, respond with,
-"Let me think about that for a little longer...", "I need to look that up...", "I'll get back to you with an answer...", or a variation of that.
-- Your goal is to only answer immediately if you are 100% confident in your ability to provide a complete answer. The user will be provided with another answer post yours.
-- If you do provide an answer, let the user know that this was a quick answer and that you will provide another answer post yours.
-
-{context_section}
-
-Keep your response brief and to the point. 
-/no_think"""
-
-            # Get the initial response from the LLM
-            initial_response_text = self._call_llm(system_prompt=initial_system_prompt, user_prompt=query)
-            
-            # Clean the response
-            initial_response_text = self._clean_response(initial_response_text)
-            
-            # Send initial agent response to the frontend
-            if self.message_callback:
-                initial_response = {
-                    "type": MessageType.AGENT_RESPONSE,
-                    "data": {
-                        "answer": initial_response_text,
-                        "agent_name": self.name
-                    }
-                }
-                try:
-                    # Check if the callback is a coroutine function (async)
-                    if inspect.iscoroutinefunction(self.message_callback):
-                        # Create a task to run the coroutine
-                        await self.message_callback(initial_response)
-                    else:
-                        # Call the sync function directly
-                        self.message_callback(initial_response)
-                except Exception as e:
-                    logger.error(f"Error sending initial agent response: {e}")
-        except Exception as e:
-            logger.error(f"Error generating initial response: {e}")
-            # If we fail to generate an initial response, continue with the main processing
-        
         try:
             # Get available tools and resources
-            self._send_status_message("Getting available tools and resources...")
+            self._send_status_message("Evaluating the available tools and resources...")
             try:
                 tools = await self._mcp_client.get_available_tools()
                 resources = await self._mcp_client.get_available_resources()
@@ -178,24 +111,31 @@ Keep your response brief and to the point.
                     f"I encountered an error while getting my tools and resources: {str(e)}",
                     "There was an error connecting to the server."
                 )
+
+            # Extract context entities to enhance the system prompt
+            context_entities = await self._extract_context_entities()
             
-            # Log extraction status for context entities (which were already extracted for initial response)
+            # Log extraction status
             if context_entities is False:
                 logger.warning("Context extraction failed, proceeding without context")
             elif not context_entities:
                 pass  # No context entities extracted (empty string)
-
+            
             # Generate prompts based on available tools and context
             system_prompt = await self._create_system_prompt(tools, user_id, query, context_entities, resources)
             
             # Create a simple user prompt without conversation history
             user_prompt = f"\n\nUser ID: {user_id}\nCurrent Query: {query}\n\nPlease answer this query."
             
+            # Analyze query with LLM to determine tools needed
+            self._send_status_message("Analyzing your query...")
+            
             # Track whether we have already tried to refine the response
             refinement_attempts = 0
-            max_refinement_attempts = 3
+            max_refinement_attempts = 4
             
             while refinement_attempts <= max_refinement_attempts:
+                self._send_status_message(f"Let me refine the response and try again ({refinement_attempts}/{max_refinement_attempts})...")
                 try:
                     # Get response from LLM
                     llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
@@ -218,22 +158,45 @@ Keep your response brief and to the point.
                             tool_names_str = ", ".join([f"'{name}'" for name in mentioned_tools])
                             refinement_prompt = f"""You mentioned using the tool(s): {tool_names_str}, but didn't format the tool call correctly.
 
-Please use the proper JSON format for tool calls:
-```json
-{{
-  "name": "tool_name",
-  "params": {{
-    "param1": "value1",
-    "param2": "value2"
-  }}
-}}
-```
+Please use the correct client.call_tool format. Here's the exact format for the tool(s) you mentioned:
 
-Or function call format: tool_name(param1="value1", param2="value2")
+"""
+                            # Add format for each mentioned tool
+                            for tool_name in mentioned_tools:
+                                tool_obj = next((t for t in tools if t.name == tool_name), None)
+                                if tool_obj:
+                                    input_schema = getattr(tool_obj, 'inputSchema', {}) or {}
+                                    properties = input_schema.get('properties', {})
+                                    
+                                    refinement_prompt += "```python\n"
+                                    refinement_prompt += f'client.call_tool("{tool_name}", {{\n'
+                                    
+                                    # Add parameters with their descriptions
+                                    for param_name, param_info in properties.items():
+                                        param_type = param_info.get('type', 'string')
+                                        param_description = param_info.get('description', '')
+                                        
+                                        # Format default value based on type
+                                        if param_type == 'string':
+                                            refinement_prompt += f'    "{param_name}": "value",  # {param_description}\n'
+                                        elif param_type == 'integer':
+                                            refinement_prompt += f'    "{param_name}": 0,  # {param_description}\n'
+                                        elif param_type == 'number':
+                                            refinement_prompt += f'    "{param_name}": 0.0,  # {param_description}\n'
+                                        elif param_type == 'boolean':
+                                            refinement_prompt += f'    "{param_name}": false,  # {param_description}\n'
+                                        elif param_type == 'array':
+                                            refinement_prompt += f'    "{param_name}": [],  # {param_description}\n'
+                                        elif param_type == 'object':
+                                            refinement_prompt += f'    "{param_name}": {{}},  # {param_description}\n'
+                                        else:
+                                            refinement_prompt += f'    "{param_name}": "value",  # {param_description}\n'
+                                    
+                                    refinement_prompt += "})\n```\n\n"
 
-Let me restate the query: {query}
-
-Please provide a proper tool call to answer this query."""
+                            refinement_prompt += "Let me restate the query: {query}\n\nPlease provide a proper tool call to answer this query."
+                            
+                            print(f"\n[DEBUG] Refinement prompt:\n--------------------------------\n{refinement_prompt}")
                             
                             # Update the user prompt for refinement
                             user_prompt = refinement_prompt
@@ -301,12 +264,16 @@ Please provide a proper tool call to answer this query."""
                 for resource_id, resource_data in fetched_resources.items():
                     resource_content = resource_data["content"]
                     resource_name = resource_data["name"]
-                    context_sections.append(f"INFORMATION FROM RESOURCE {resource_name.upper()}:\n\n{resource_content}")
+                    context_sections.append(f"INFORMATION FROM RESOURCE {resource_name}:\n\n{resource_content}")
+
+                # Add the new context to the system prompt
+                system_prompt += "\n\n" + context_sections
                 
                 # Create an enhanced prompt with all resource context
-                context_prompt = f"\n\nUser ID: {user_id}\n\n" + "\n\n".join(context_sections) + f"\n\nCurrent Query: {query}\n\nPlease answer this query."
+                user_prompt = f"\n\nUser ID: {user_id}\n\nCurrent Query: {query}\n\nPlease answer this query."
                 
-                llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=context_prompt)
+                self._send_status_message("Analyzing query with additional context...")
+                llm_response = self._call_llm(system_prompt=system_prompt, user_prompt=user_prompt)
                 clean_llm_response = self._clean_response(llm_response)
                 # Re-extract tool calls with the updated response
                 tool_calls = self._mcp_client.extract_tool_calls(llm_response, tools)
@@ -371,6 +338,7 @@ Please provide a proper tool call to answer this query."""
                         "tool_name": tool_name,
                         "result": self._mcp_client.extract_tool_result(result)
                     })
+
                 except Exception as e:
                     logger.error(f"Error calling tool {tool_name}: {e}")
                     tool_results.append({
@@ -431,6 +399,9 @@ Please provide a proper tool call to answer this query."""
             LLM response text.
         """
         try:
+            print(f"\n\nSystem prompt:\n--------------------------------\n{system_prompt}")
+            print(f"\n\nUser prompt:\n--------------------------------\n{user_prompt}")
+
             # Using Ollama API with the Thinker's LLM configuration
             url = CHAT_API_URL
             
@@ -479,32 +450,36 @@ Please provide a proper tool call to answer this query."""
         """
         # If we have tool results, we need to format a final answer using them
         if tool_results:
-            
-            # Prepare a prompt for the LLM to interpret tool results
-            system_prompt = f"""You are providing a final, concise answer to a user's question based on tool results.
-Your response should be clear, factual, and directly address the question. 
+            self._send_status_message("Formulating final answer...")
 
-IMPORTANT:
-1. Be conversational and direct, starting with the answer itself
-2. If there is information regarding the process that is necessary to find the final answer, you don't need to include it in your response.
-
-
-{self._context_handling_instructions}
-"""
-            
             # Format the tool results for the LLM
             tool_results_str = json.dumps(tool_results, indent=2)
             
+            # Prepare a prompt for the LLM to interpret tool results
+            system_prompt = f"""You are the Thinker Agent, also known as "Agent Thinker". You are providing a final, concise answer to a user's question based on tool results.
+
+            Here are the results of the tool used prior to this:
+            {tool_results_str}
+
+            INSTRUCTIONS TO PERFORM YOUR TASK:
+            1. Your response should be clear, factual, and directly address the question. 
+            2. If there is information regarding the process that is necessary to find the final answer, you don't need to include it in your response.
+            3. Be conversational and direct, starting with the answer itself
+            4. If a follow-up question relates to information you just provided, use that information
+            5. FIRST look at the most recent conversation history to resolve these references
+            6. Use conversation history to understand CONTEXT, not just to find answers
+            7. If the tool results are useful, use them to answer the question.
+            8. Never make up information or make assumptions. If you don't know the answer, say so truthfully.
+"""
+            
             user_prompt = f"""Original query: {query}
 
-Tool results:
-{tool_results_str}
 
 Provide a clear, direct answer that addresses the query without mentioning the tools or process used.
 """
             
             try:
-                 # Get the final answer from the LLM
+                # Get the final answer from the LLM
                 final_answer = self._call_llm(system_prompt, user_prompt)
                 
                 # Clean the thinking from the final answer
@@ -578,75 +553,31 @@ Provide a clear, direct answer that addresses the query without mentioning the t
             Formatted system prompt.
         """
         # Format the tool descriptions
-        tool_descriptions = self._mcp_client.format_tools_for_prompt(tools)
-        
-        # Determine which tools require user_id
-        tools_requiring_user_id = []
-        for tool in tools:
-            try:
-                input_schema = getattr(tool, 'inputSchema', {}) or {}
-                properties = input_schema.get('properties', {})
-                if "user_id" in properties:
-                    tools_requiring_user_id.append(tool.name)
-            except Exception:
-                pass
-
-        # Build examples of how to use the tools
-        # Generate examples of proper tool usage
-        tool_examples_text = "HERE ARE SOME EXAMPLES OF HOW TO USE THE TOOLS:"
+        tool_information = "AVAILABLE TOOLS:\n\n"
         for tool in tools:
             # Get tool details
-            tool_name = tool.name
-            input_schema = getattr(tool, 'inputSchema', {}) or {}
-            properties = input_schema.get('properties', {})
-            
-            # Skip if no properties
-            if not properties:
-                continue
-            
-            # Build an example with parameters in correct order
-            example_params = {}
-            param_desc_parts = []
-            
-            for param_name, param_info in properties.items():
-                param_type = param_info.get('type', 'string')
-                
-                # Add user_id parameter with the actual value
-                if param_name == 'user_id':
-                    example_params[param_name] = user_id
-                    param_desc_parts.append(f'{param_name}: "{user_id}"')
-                # Add sample values for other parameters
-                elif param_type == 'string':
-                    sample_value = f"example_{param_name}"
-                    example_params[param_name] = sample_value
-                    param_desc_parts.append(f'{param_name}: "{sample_value}"')
-                elif param_type == 'integer':
-                    example_params[param_name] = 5
-                    param_desc_parts.append(f'{param_name}: 5')
-                elif param_type == 'boolean':
-                    example_params[param_name] = True
-                    param_desc_parts.append(f'{param_name}: true')
-            
-            # Format both JSON and function-call examples
-            if param_desc_parts:
-                # JSON format
-                json_example = json.dumps({
-                    "name": tool_name,
-                    "params": example_params
-                }, indent=2)
-                
-                # Function-call format
-                func_example = f'{tool_name}({", ".join(param_desc_parts)})'
-                
-                # Add example as formatted text to the examples string
-                tool_examples_text += f"\nExample for {tool_name}:\n```json\n{json_example}\n```\nOR as a function call: `{func_example}`\n"
-                tool_examples_text += f"\nIt is CRITICAL to follow the exact format of the examples above when using the tool or else, the tool calls will fail."
+            tool_name = getattr(tool, 'name', 'unknown')
+            description = getattr(tool, 'description', 'No description provided')
+            parameters = getattr(tool, 'inputSchema', {}) or {}
+            tool_information += f"Tool: {tool_name}\n"
+            tool_information += f"Description: {description}\n"
+            tool_information += "Example usage:\n"
+            tool_information += f"```python\n"
+            tool_information += f"client.call_tool(\"{tool_name}\", {{\n"
+            for param, value in parameters.get('properties', {}).items():
+                tool_information += f"  \"{param}\": \"{value}\",\n"
+            tool_information += f"}})\n"
+            tool_information += f"```\n\n"
+        
+        tool_information += """
+TO USE TOOLS:
+1. Identify when a tool would be helpful for understanding the query
+2. Use client.call_tool() with the appropriate tool name and parameters
+3. It is CRITICAL to follow the exact format of the tool call examples above when using any tool or else, the tool calls will fail.
+"""
 
-        
-        # Create information about available resources
-        resource_information = ""
-        
         # Use dynamically fetched resources if available
+        resource_information = ""
         if resources and len(resources) > 0:
             resource_information += "AVAILABLE RESOURCES:\n\n"
             for resource in resources:
@@ -674,60 +605,49 @@ Provide a clear, direct answer that addresses the query without mentioning the t
                 resource_information += f"Description: {resource_description}\n"
                 resource_information += f"When to use: When you need {resource_description.lower()}\n"
                 resource_information += f"Example usage:\n"
-                resource_information += f"```json\n"
-                resource_information += f"{{\n"
-                resource_information += f"  \"action\": \"read_resource\",\n"
-                resource_information += f"  \"resource_uri\": \"{resource_uri}\",\n"
-                resource_information += f"  \"reasoning\": \"Need {resource_name.lower()} to better understand or answer the query\"\n"
-                resource_information += f"}}\n"
+                resource_information += f"```python\n"
+                resource_information += f"client.read_resource(\"{resource_uri}\")\n"
                 resource_information += f"```\n\n"
 
         resource_information += """
 TO USE RESOURCES:
 1. Identify when a resource would be helpful for understanding the query
 2. Use client.read_resource() with the appropriate URI
-3. Look at the resource's content before formulating your response
-4. The answer you are looking for may not be in the resource, but it may still inform your response.
+3. It is CRITICAL to follow the exact format of the resource call examples above when using any resource or else, the resource calls will fail.
 """
 
         # Build the user preferences block
-        user_preference_information = "USER PREFERENCES:\n\n"
+        user_preference_information = ""
         try:
             user_preference_information += get_user_preferences(user_id)
+            if user_preference_information:
+                user_preference_information = "\n\nUSER PREFERENCES:\n" + user_preference_information
         except Exception as e:
             logger.error(f"Error fetching user preferences: {e}")
             user_preference_information = ""
 
         # Build the set of user facts that are relevant to the user's query
-        user_facts = "FACTS ABOUT THE USER RELEVANT TO THE QUERY:\n\n"
-        user_facts += f"User's home location code is '{USER_LOCATION}'"
-        user_facts += f"Time at home location is {datetime.now().strftime('%I:%M %p on %A, %B %d, %Y')} - "
-        user_facts += f"User's preferred language code is '{USER_LANGUAGE}'"
+        basic_information = "\n\nBASIC INFORMATION ABOUT THE USER:"
+        basic_information += f"\n1. User's home location code is '{USER_LOCATION}'"
+        basic_information += f"\n2. Time at home location is {datetime.now().strftime('%I:%M %p on %A, %B %d, %Y')}"
+        basic_information += f"\n3. User's preferred language code is '{USER_LANGUAGE}'\n"
 
+        user_facts = ""
         try:
-            user_facts += get_user_facts_relevant_to_query(user_id, query)
+            user_facts = get_user_facts_relevant_to_query(user_id, query)
+            user_facts = "\n\nFACTS ABOUT THE USER RELEVANT TO THE QUERY:\n" + user_facts
         except Exception as e:
             logger.error(f"Error fetching user facts: {e}")
             user_facts = ""
 
-        # Build the user goals block
-        user_goals = "THE USER'S LIFE GOALS:\n\n"
+        user_goals = ""
         try:
-            user_goals += get_user_goals(user_id)
+            user_goals = get_user_goals(user_id)
+            if user_goals:
+                user_goals = "\n\nLONG TERM GOALS OF THE USER:\n" + user_goals
         except Exception as e:
             logger.error(f"Error fetching user goals: {e}")
             user_goals = ""
-
-        print(f"\n\nUser goals:\n--------------------------------\n{user_goals}")
-        
-        # Build the user_id guidance
-        user_id_guidance = ""
-        if tools_requiring_user_id:
-            if len(tools_requiring_user_id) == len(tools):
-                user_id_guidance = f"When using any tool, ALWAYS include the user_id parameter set to \"{user_id}\"."
-            else:
-                tool_list = ", ".join(tools_requiring_user_id)
-                user_id_guidance = f"When using the following tools: {tool_list}, ALWAYS include the user_id parameter set to \"{user_id}\"."
         
 
         # Add context entities section if available
@@ -744,30 +664,22 @@ TO USE RESOURCES:
 
 You have access to the following tools and resources but use them only when necessary:
 
-{tool_descriptions}
-
-{tool_examples_text}
-
+{tool_information}
 {resource_information}
-
-{user_id_guidance}
-
-{user_goals}
-
-{user_preference_information}
-
+{basic_information}
 {user_facts}
-
+{user_preference_information}
+{user_goals}
 INSTRUCTIONS FOR ANSWERING USER QUERIES:
 
 1. If the user's query can be answered using your own knowledge and without the use of tools, please do so. 
-2. If the user's query is using pronouns ('he', 'she', 'it', 'they') or references information that is likely to be in the conversation history, you should use the conversation history resource to understand the subject and context.
-3. If you need to reference something from the past conversations, try to find it first through the conversation history resource before using any other tools to find the information. It's just faster.
-3. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
-4. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
-5. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
-6. If you have the user's preferences, facts about the user, or the user's goals, use them to personalize the answer to the user's query in a friendly and engaging way.
-7. If you are provided the context of the conversation so far, use it to better understand the user's query and provide a more personalized answer. 
+2. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
+3. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
+4. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
+5. If you have the user's preferences or facts about the user, use them to personalize the answer to the user's query in a friendly and engaging way.
+6. If you are provided the context of the conversation so far, use it to better understand the user's query.
+7. If you need to use a tool or resource but cannot execute it, just respond with the exact command you would use to execute it and you will be provided the results of that command.
+8. If the user has long term goals, use them to better understand the user's query and see if you can be helpful to the user in achieving those goals.
 
 {context_section}
 --------------------------------
@@ -832,8 +744,8 @@ Recent conversation:
                     "options": {"temperature": 0.1}  # Lower temperature for more consistent extraction
                 }
                 
-                # Make the API call in a separate thread
-                response = await asyncio.to_thread(requests.post, url, json=payload, timeout=15)
+                # Make the API call
+                response = requests.post(url, json=payload, timeout=15)  # Increased timeout for reliability
                 response.raise_for_status()
                 
                 # Extract the content from the response

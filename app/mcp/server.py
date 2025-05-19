@@ -101,9 +101,9 @@ def create_server():
             return {"error": str(e)}
     
     @mcp.tool()
-    def search_for_past_conversations_with_query_similarity(query: str, user_id: str, limit: int = 1):
+    def find_information_in_past_conversations(query: str, user_id: str, limit: int = 1):
         """
-        Search through the past conversations to find anything semantically similar to a query. 
+        This is useful when you need to find information about a specific topic or idea that the user has mentioned in the past.
         
         Args:
             query: Query string to search for

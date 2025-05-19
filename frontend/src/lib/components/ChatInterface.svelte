@@ -91,11 +91,23 @@
   function processLatex(content: string): string {
     if (!content || !browser) return content || '';
     
-    // Only process if there are LaTeX delimiters
-    if (!content.includes('$')) return content;
+    // Skip processing if there are no LaTeX delimiters or if it looks like a currency value
+    if (!content.includes('$') || /\$\s*[\d,]+(\.\d{2})?\s*(?:USD|EUR|GBP)?/.test(content)) return content;
     
     try {
-      // First, handle display LaTeX: $$...$$
+      // First check for currency values and temporarily replace them
+      const currencyPlaceholders: {[key: string]: string} = {};
+      let counter = 0;
+      
+      // Replace currency values with placeholders before LaTeX processing
+      content = content.replace(/\$\s*[\d,]+(\.\d{2})?\s*(?:USD|EUR|GBP)?/g, (match) => {
+        const placeholder = `__CURRENCY_${counter}__`;
+        currencyPlaceholders[placeholder] = match;
+        counter++;
+        return placeholder;
+      });
+      
+      // Handle display LaTeX: $$...$$
       content = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, latex) => {
         try {
           return katex.renderToString(latex.trim(), {
@@ -111,6 +123,10 @@
       // Then handle inline LaTeX: $...$ (but not $$...$$ which was already processed)
       content = content.replace(/(?<!\$)\$((?!\$)[\s\S]+?)\$(?!\$)/g, (match, latex) => {
         try {
+          // Skip if it looks like a currency value that slipped through
+          if (/^\s*[\d,]+(\.\d{2})?\s*(?:USD|EUR|GBP)?$/.test(latex)) {
+            return match;
+          }
           return katex.renderToString(latex.trim(), {
             throwOnError: false,
             displayMode: false
@@ -119,6 +135,11 @@
           console.error('KaTeX inline rendering error:', e, 'in:', latex);
           return match; // Return original on error
         }
+      });
+      
+      // Restore currency values from placeholders
+      Object.entries(currencyPlaceholders).forEach(([placeholder, original]) => {
+        content = content.replace(placeholder, original);
       });
       
       return content;

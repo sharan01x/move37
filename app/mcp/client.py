@@ -42,6 +42,37 @@ class MCPClient:
         self._last_resources_fetch = None
         self._resources_cache_ttl = 3600  # Time to live for cached resources in seconds (1 hour)
     
+    def _initialize_client(self):
+        """Initialize or reinitialize the MCP client."""
+        transport = SSETransport(self._client_url)
+        self._client = Client(transport)
+    
+    async def _retry_operation(self, operation, *args, **kwargs):
+        """
+        Retry an operation with exponential backoff.
+        
+        Args:
+            operation: The async operation to retry
+            *args: Arguments to pass to the operation
+            **kwargs: Keyword arguments to pass to the operation
+            
+        Returns:
+            Result of the operation
+        """
+        last_error = None
+        for attempt in range(self._max_retries):
+            try:
+                return await operation(*args, **kwargs)
+            except Exception as e:
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    logger.warning(f"Operation failed (attempt {attempt + 1}/{self._max_retries}): {str(e)}")
+                    await asyncio.sleep(self._retry_delay * (2 ** attempt))  # Exponential backoff
+                    self._initialize_client()  # Reinitialize client before retry
+                else:
+                    logger.error(f"Operation failed after {self._max_retries} attempts: {str(e)}")
+                    raise last_error
+    
     async def get_available_tools(self) -> List[Any]:
         """
         Get available tools from MCP server, using cache if available.
@@ -213,6 +244,13 @@ class MCPClient:
         try:
             async with self._client:
                 result = await self._client.call_tool(tool_name, params)
+                
+                # Extract the result content before printing
+                result_content = self.extract_tool_result(result)
+                
+                # Print the result to the terminal
+                print(f"\n[TOOL RESULT] {json.dumps(result_content, indent=2)}")
+                
                 return result
         except Exception as e:
             logger.error(f"Error calling tool {tool_name}: {e}")
@@ -230,9 +268,15 @@ class MCPClient:
             Resource data
         """
         try:
+            
             async with self._client:
-                resource = await self._client.read_resource(uri, params or {})
+                if params:
+                    resource = await self._client.read_resource(uri, params)
+                else:
+                    resource = await self._client.read_resource(uri)
+                
                 return resource
+            
         except Exception as e:
             logger.error(f"Error reading resource {uri}: {str(e)}")
             raise
@@ -502,11 +546,21 @@ class MCPClient:
             List of resource URIs to fetch.
         """
         try:
-            # Look for resource access patterns in the text
-            resource_matches = re.findall(r'(?:```json\s*\n)?\s*{\s*"action"\s*:\s*"read_resource"\s*,\s*"resource_uri"\s*:\s*"([^"]+)"\s*(?:,\s*"reasoning"\s*:\s*"([^"]+)")?\s*}(?:\s*\n\s*```)?', text, re.DOTALL)
-            
             resource_uris = []
-            for match in resource_matches:
+            
+            # Look for client.read_resource calls
+            client_resource_pattern = r'client\.read_resource\(\s*["\']([^"\']+)["\']'
+            client_resource_matches = re.findall(client_resource_pattern, text, re.DOTALL)
+            
+            for uri in client_resource_matches:
+                if uri and uri not in resource_uris:
+                    resource_uris.append(uri)
+            
+            # Also look for the old JSON resource pattern for backward compatibility
+            json_resource_pattern = r'(?:```json\s*\n)?\s*{\s*"action"\s*:\s*"read_resource"\s*,\s*"resource_uri"\s*:\s*"([^"]+)"\s*(?:,\s*"reasoning"\s*:\s*"([^"]+)")?\s*}(?:\s*\n\s*```)?'
+            json_resource_matches = re.findall(json_resource_pattern, text, re.DOTALL)
+            
+            for match in json_resource_matches:
                 resource_uri = match[0].strip()
                 if resource_uri and resource_uri not in resource_uris:
                     resource_uris.append(resource_uri)
@@ -577,10 +631,47 @@ class MCPClient:
         
         tool_calls = []
         
-        # Try to find structured JSON format first
+        # Try to find client.call_tool pattern first
+        client_call_pattern = r'client\.call_tool\(\s*["\']([^"\']+)["\'],\s*({.*?})\s*\)'
+        client_call_matches = re.findall(client_call_pattern, llm_response, re.DOTALL)
+        
+        for match in client_call_matches:
+            tool_name = match[0]
+            params_str = match[1]
+            
+            # Skip if tool name is invalid
+            if tool_name not in tool_names:
+                logger.warning(f"Ignoring call to unknown tool: {tool_name}")
+                continue
+            
+            try:
+                # Try to parse the params as JSON
+                params = json.loads(params_str)
+                tool_calls.append({"name": tool_name, "params": params})
+            except json.JSONDecodeError:
+                # If JSON parsing fails, try to extract param pairs directly
+                params = {}
+                param_pairs = re.findall(r'["\']([\w_]+)["\']:\s*["\']?([^"\',}]+)["\']?', params_str)
+                for key, val in param_pairs:
+                    # Try to convert types when appropriate
+                    if val.isdigit():
+                        params[key] = int(val)
+                    elif val.lower() in ['true', 'false']:
+                        params[key] = val.lower() == 'true'
+                    else:
+                        params[key] = val
+                        
+                if params:
+                    tool_calls.append({"name": tool_name, "params": params})
+        
+        # If we found client.call_tool calls, return them
+        if tool_calls:
+            return tool_calls
+        
+        # Try to find structured JSON format
         json_patterns = [
-            r'```json\s*({.*?"name"\s*:\s*"[^"]*".*?})\s*```',  # JSON in code blocks
-            r'({.*?"name"\s*:\s*"[^"]*".*?})'                  # Raw JSON
+            r'```json\s*({.*?})\s*```',  # JSON in code blocks
+            r'({.*?})'                   # Raw JSON
         ]
         
         for pattern in json_patterns:
@@ -588,15 +679,38 @@ class MCPClient:
             for match in matches:
                 try:
                     call_data = json.loads(match)
-                    tool_name = call_data.get("name")
                     
-                    # Skip if tool name is invalid
-                    if tool_name not in tool_names:
-                        logger.warning(f"Ignoring call to unknown tool: {tool_name}")
-                        continue
+                    # Handle new format with action field
+                    if "action" in call_data:
+                        # Convert action to tool name if it matches a tool
+                        action = call_data["action"]
+                        if action in tool_names:
+                            tool_name = action
+                        else:
+                            # Try to find a tool that matches the action
+                            matching_tools = [t for t in tool_names if action.lower() in t.lower()]
+                            if matching_tools:
+                                tool_name = matching_tools[0]
+                            else:
+                                logger.warning(f"Ignoring call with unknown action: {action}")
+                                continue
                         
-                    params = call_data.get("params", {})
-                    tool_calls.append({"name": tool_name, "params": params})
+                        # Extract parameters
+                        params = call_data.get("params", {})
+                        
+                        # Add resource_uri to params if present
+                        if "resource_uri" in call_data:
+                            params["resource_uri"] = call_data["resource_uri"]
+                            
+                        tool_calls.append({"name": tool_name, "params": params})
+                        continue
+                    
+                    # Handle old format with name field
+                    tool_name = call_data.get("name")
+                    if tool_name and tool_name in tool_names:
+                        params = call_data.get("params", {})
+                        tool_calls.append({"name": tool_name, "params": params})
+                        
                 except json.JSONDecodeError:
                     continue
         
@@ -671,5 +785,7 @@ class MCPClient:
                 # If no intent phrase found, check for direct "toolName:" pattern
                 if tool_name not in mentioned_tools and re.search(rf'{re.escape(tool_name)}\s*:', llm_response, re.IGNORECASE):
                     mentioned_tools.append(tool_name)
+                    
+        return mentioned_tools 
                     
         return mentioned_tools 
