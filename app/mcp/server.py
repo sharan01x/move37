@@ -15,6 +15,7 @@ from app.tools.math_tool import MathToolFunctions
 from app.tools.conversation_tool import ConversationToolFunctions
 from app.tools.file_search_tool import FileSearchToolFunctions
 from app.tools.browser_tool import run_browser_task
+from app.tools.web_search_tool import WebSearchTool
 from app.core.config import MCP_SERVER_PORT, MCP_SERVER_HOST
 
 # Set up logging with reduced noise
@@ -241,7 +242,44 @@ def create_server():
         except Exception as e:
             logger.error(f"Error retrieving historical conversation history: {e}")
             return {"error": str(e)}
+        # Example integration with MCP server (server.py)
     
+    # Web search tool integration
+    @mcp.tool()
+    def web_search(query: str, user_id: str, max_results: int = 3, enable_citations: bool = True):
+        """
+        Perform a web search using the provided query. Use this when you need to find information from the web, not to perform actions on websites.
+        
+        Args:
+            query: The search query
+            user_id: User ID required for authentication
+            max_results: (Optional) Maximum number of search results to return. Default is 3.
+            enable_citations: (Optional) Whether to include citations in the response. Default is True.
+            
+        Returns:
+            Search results from the web with citations when enabled
+        """
+        try:
+            if not user_id:
+                logger.error("No user_id provided for web search")
+                raise ValueError("user_id is required and cannot be empty")
+            
+            # Initialize the tool
+            web_search_tool = WebSearchTool()
+            
+            # Perform the search
+            results = web_search_tool.search(
+                query=query, 
+                max_results=max_results,
+                enable_citations=enable_citations
+            )
+            
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error performing web search: {e}")
+            return {"error": str(e)}
+
     return mcp
 
 def main():

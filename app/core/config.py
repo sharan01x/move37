@@ -98,6 +98,12 @@ FAST_PROCESSING_LLM_MODEL = "phi4-mini:latest"
 
 # For OpenAI (if used)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_API_URL = os.environ.get("OPENAI_API_URL", "https://api.openai.com/v1/")
+
+# For VeniceAI (if used)
+VENICEAI_API_KEY = os.environ.get("VENICEAI_API_KEY", "")
+VENICEAI_API_URL = os.environ.get("VENICEAI_API_URL", "https://api.venice.ai/api/v1/chat/completions")
+WEB_SEARCH_LLM_MODEL = "venice-uncensored"
 
 # LLM Settings
 CHAT_API_URL = os.environ.get("OLLAMA_CHAT_API_URL", "http://localhost:11434/api/chat")
@@ -129,8 +135,13 @@ MCP_SERVER_HOST = os.environ.get("MCP_SERVER_HOST", "localhost")
 MCP_SERVER_PORT = int(os.environ.get("MCP_SERVER_PORT", 7777))
 
 # Browser settings
-BROWSER_LLM_MODEL = "qwen2.5:latest"
+OPENAI_BROWSER_EXECUTION_MODEL = "gpt-4o-mini"  # OpenAI model for browser execution
+OPENAI_BROWSER_PLANNING_MODEL = "gpt-4o"  # OpenAI model for planning tasks
+OLLAMA_BROWSER_EXECUTION_MODEL = "qwen2.5:latest"
+OLLAMA_BROWSER_PLANNING_MODEL = "phi4-mini:latest"  # Smaller model for planning tasks
+
 BROWSER_BINARY_PATH = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"  # Path to the browser binary
+BROWSER_PROFILE_PATH = os.path.join(DATA_DIR, "browser-use")
 os.environ["ANONYMIZED_TELEMETRY"] = "false"
 
 # Locale settings
