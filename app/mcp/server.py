@@ -15,7 +15,7 @@ from app.tools.math_tool import MathToolFunctions
 from app.tools.conversation_tool import ConversationToolFunctions
 from app.tools.file_search_tool import FileSearchToolFunctions
 from app.tools.browser_tool import run_browser_task
-from app.tools.web_search_tool import WebSearchTool
+from app.tools.web_search_tool import search_web
 from app.core.config import MCP_SERVER_PORT, MCP_SERVER_HOST
 
 # Set up logging with reduced noise
@@ -38,7 +38,7 @@ def create_server():
     @mcp.tool()
     async def execute_browser_task(task: str, user_id: str):
         """
-        Use this tool to use a web browser to perform tasks on the web for real-time information or actions.
+        Use this tool to use a web browser to perform tasks on websites or to find information on the web.
         
         Args:
             task: The task description for the browser to execute.
@@ -242,19 +242,17 @@ def create_server():
         except Exception as e:
             logger.error(f"Error retrieving historical conversation history: {e}")
             return {"error": str(e)}
-        # Example integration with MCP server (server.py)
     
     # Web search tool integration
     @mcp.tool()
-    def web_search(query: str, user_id: str, max_results: int = 3, enable_citations: bool = True):
+    def search_the_web_for_information(query: str, user_id: str, max_results: int = 3):
         """
-        Perform a web search using the provided query. Use this when you need to find information from the web, not to perform actions on websites.
+        Perform a web search using the provided query. Use this when you only when you need to find information from the web. Do not use it to perform actions on websites.
         
         Args:
             query: The search query
             user_id: User ID required for authentication
-            max_results: (Optional) Maximum number of search results to return. Default is 3.
-            enable_citations: (Optional) Whether to include citations in the response. Default is True.
+            max_results: (Optional) Maximum number of search results to return. Default is 3. 
             
         Returns:
             Search results from the web with citations when enabled
@@ -264,18 +262,12 @@ def create_server():
                 logger.error("No user_id provided for web search")
                 raise ValueError("user_id is required and cannot be empty")
             
-            # Initialize the tool
-            web_search_tool = WebSearchTool()
-            
-            # Perform the search
-            results = web_search_tool.search(
+            # Call the search_web function directly
+            results = search_web(
                 query=query, 
-                max_results=max_results,
-                enable_citations=enable_citations
+                max_results=max_results
             )
-            
             return results
-        
         except Exception as e:
             logger.error(f"Error performing web search: {e}")
             return {"error": str(e)}
@@ -292,12 +284,7 @@ def main():
     
     args = parser.parse_args()
     
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
-        # Set FastMCP debug logging
-        logging.getLogger("fastmcp").setLevel(logging.DEBUG)
-    
-    # Create the server
+    # Create and start the server
     mcp = create_server()
     
     try:

@@ -103,7 +103,7 @@ OPENAI_API_URL = os.environ.get("OPENAI_API_URL", "https://api.openai.com/v1/")
 # For VeniceAI (if used)
 VENICEAI_API_KEY = os.environ.get("VENICEAI_API_KEY", "")
 VENICEAI_API_URL = os.environ.get("VENICEAI_API_URL", "https://api.venice.ai/api/v1/chat/completions")
-WEB_SEARCH_LLM_MODEL = "venice-uncensored"
+WEB_SEARCH_LLM_MODEL = "llama-3.3-70b" # venice-uncensored, qwen-2.5-qwq-32b or dolphin-2.9.2-qwen2-72b are all options
 
 # LLM Settings
 CHAT_API_URL = os.environ.get("OLLAMA_CHAT_API_URL", "http://localhost:11434/api/chat")

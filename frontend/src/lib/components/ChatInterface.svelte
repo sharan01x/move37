@@ -35,7 +35,6 @@
   import { v4 as uuidv4 } from 'uuid';
   // @ts-ignore
   import MarkdownIt from 'markdown-it';
-  // Import KaTeX directly - remove markdownItKatex
   import katex from 'katex';
   import 'katex/dist/katex.min.css';
   

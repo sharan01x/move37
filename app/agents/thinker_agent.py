@@ -196,8 +196,6 @@ Please use the correct client.call_tool format. Here's the exact format for the 
 
                             refinement_prompt += "Let me restate the query: {query}\n\nPlease provide a proper tool call to answer this query."
                             
-                            print(f"\n[DEBUG] Refinement prompt:\n--------------------------------\n{refinement_prompt}")
-                            
                             # Update the user prompt for refinement
                             user_prompt = refinement_prompt
                             continue  # Try again with the refinement prompt
@@ -399,9 +397,6 @@ Please use the correct client.call_tool format. Here's the exact format for the 
             LLM response text.
         """
         try:
-            print(f"\n\nSystem prompt:\n--------------------------------\n{system_prompt}")
-            print(f"\n\nUser prompt:\n--------------------------------\n{user_prompt}")
-
             # Using Ollama API with the Thinker's LLM configuration
             url = CHAT_API_URL
             
@@ -474,15 +469,12 @@ Please use the correct client.call_tool format. Here's the exact format for the 
             
             user_prompt = f"""Original query: {query}
 
-
 Provide a clear, direct answer that addresses the query without mentioning the tools or process used.
 """
             
             try:
-                # Get the final answer from the LLM
+                # Get the final answer from the LLM and clean it
                 final_answer = self._call_llm(system_prompt, user_prompt)
-                
-                # Clean the thinking from the final answer
                 cleaned_answer = self._clean_response(final_answer)
                 
                 # Store conversation asynchronously after getting final answer
@@ -510,8 +502,9 @@ Provide a clear, direct answer that addresses the query without mentioning the t
                 logger.error(f"Error formulating final answer: {str(e)}")
                 # Use a simplified answer if the LLM call fails
                 results_text = "\n".join([f"Tool {r['tool_name']} returned: {r.get('result', '')}" for r in tool_results])
+                cleaned_results = self._clean_response(results_text)
                 return {
-                    "answer": f"Here are the results of my tools: {results_text}",
+                    "answer": f"Here are the results of my tools: {cleaned_results}",
                     "reasoning": "I used tools to find information, but had trouble formulating a complete answer.",
                     "agent_name": self.name,
                     "error": str(e)
@@ -662,7 +655,7 @@ TO USE RESOURCES:
         # Create the complete prompt
         system_prompt = f"""You are the Thinker agent, also known as "Agent Thinker". You are a specialized assistant that can use tools and resources to answer user queries to provide a helpful, accurate, and succinct answer.
 
-You have access to the following tools and resources but use them only when necessary:
+You have access to the following tools and resources ot use when necessary:
 
 {tool_information}
 {resource_information}
@@ -670,9 +663,10 @@ You have access to the following tools and resources but use them only when nece
 {user_facts}
 {user_preference_information}
 {user_goals}
+
 INSTRUCTIONS FOR ANSWERING USER QUERIES:
 
-1. If the user's query can be answered using your own knowledge and without the use of tools, please do so. 
+1. If the user's query can be answered using your own knowledge and without the use of tools, please do so. But if the user is looking for current or information post your knowledge-cut-off date, you will likely have to use tools to get such information.
 2. There may be questions in the conversation history, but your task is only to answer the user's current query provided in the user prompt.
 3. Don't ever make up information or make assumptions. If you don't know the answer, say so truthfully.
 4. Since you are in a conversation with the user, refer to them as "you" or "your" when appropriate, or if you know their name, use it. But don't say "user" or "user_id" or anything like that to refer to them.
@@ -822,7 +816,7 @@ Recent conversation:
 
     def _clean_response(self, text: str) -> str:
         """
-        Clean the LLM response by removing thinking tags and extra whitespace.
+        Clean the LLM response by removing thinking tags, intermediate thoughts, and extra whitespace.
         
         Args:
             text: The text to clean
@@ -844,13 +838,69 @@ Recent conversation:
             # Remove any remaining thinking tags that might be present
             cleaned = re.sub(r'(?i)</?think[^>]*>', '', cleaned)
             
-            # Remove any leading/trailing whitespace
+            # Remove common thought patterns
+            thought_patterns = [
+                r'(?i)Let me think about this[^.]*\.',
+                r'(?i)I will use[^.]*\.',
+                r'(?i)I should use[^.]*\.',
+                r'(?i)First, I will[^.]*\.',
+                r'(?i)Let me check[^.]*\.',
+                r'(?i)I need to[^.]*\.',
+                r'(?i)I can use[^.]*\.',
+                r'(?i)Let me analyze[^.]*\.',
+                r'(?i)Let me search[^.]*\.',
+                r'(?i)I\'ll help you[^.]*\.',
+                r'(?i)To answer this[^.]*\.',
+                r'(?i)To find this[^.]*\.',
+                r'(?i)To get this information[^.]*\.',
+                r'(?i)Let me fetch[^.]*\.',
+                r'(?i)I\'ll fetch[^.]*\.',
+                r'(?i)I\'ll look up[^.]*\.',
+                r'(?i)Let me look up[^.]*\.',
+            ]
+            
+            for pattern in thought_patterns:
+                cleaned = re.sub(pattern, '', cleaned)
+            
+            # Remove any lines that start with common thought indicators
+            thought_starters = [
+                'Thinking...',
+                'Processing...',
+                'Analyzing...',
+                'Checking...',
+                'Looking up...',
+                'Searching...',
+                'Fetching...',
+                'Using...',
+                'Let me...',
+                'I will...',
+                'I should...',
+                'I can...',
+                'I need...',
+                'First,',
+                'Second,',
+                'Third,',
+                'Finally,',
+            ]
+            
+            lines = cleaned.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                line = line.strip()
+                if line and not any(line.startswith(starter) for starter in thought_starters):
+                    cleaned_lines.append(line)
+            
+            cleaned = ' '.join(cleaned_lines)
+            
+            # Remove multiple spaces and clean up whitespace
+            cleaned = re.sub(r'\s+', ' ', cleaned)
             cleaned = cleaned.strip()
             
             # If after cleaning, the result is empty, return the original with tags stripped
             if not cleaned:
                 # Just strip any HTML-like tags as a fallback
                 cleaned = re.sub(r'<[^>]+>', '', text)
+                cleaned = re.sub(r'\s+', ' ', cleaned)
                 cleaned = cleaned.strip()
             
             return cleaned
