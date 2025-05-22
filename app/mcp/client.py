@@ -244,13 +244,6 @@ class MCPClient:
         try:
             async with self._client:
                 result = await self._client.call_tool(tool_name, params)
-                
-                # Extract the result content before printing
-                result_content = self.extract_tool_result(result)
-                
-                # Print the result to the terminal
-                print(f"\n[TOOL RESULT] {json.dumps(result_content, indent=2)}")
-                
                 return result
         except Exception as e:
             logger.error(f"Error calling tool {tool_name}: {e}")
